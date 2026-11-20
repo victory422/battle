@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}</style>
+</head>
+<body>
+<title>Storm Battle Orders</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: control column (setup + roster + squad editor) beside a live preview of the export image; stacks on phones. */
+:root{
+  --bg:#e7eae6; --panel:#f6f7f4; --ink:#1b211e; --muted:#5c665f; --line:#c9cfc8;
+  --accent:#e0a100; --accent-ink:#1b1606; --chip:#dde2dc; --danger:#b4412a;
+  --f-display:"Oswald","Noto Sans KR","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans","Noto Sans KR",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121614; --panel:#1b211e; --ink:#e7ebe6; --muted:#97a29a; --line:#313a35;
+  --accent:#f2b705; --accent-ink:#1b1606; --chip:#262e2a; --danger:#e07a5f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121614; --panel:#1b211e; --ink:#e7ebe6; --muted:#97a29a; --line:#313a35;
+  --accent:#f2b705; --accent-ink:#1b1606; --chip:#262e2a; --danger:#e07a5f; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.wrap{max-width:1500px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+h1{font-family:var(--f-display);font-weight:700;font-size:30px;letter-spacing:.02em;text-transform:uppercase;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0;max-width:62ch}
+.langs{display:flex;gap:10px;flex-wrap:wrap}
+.langs .field{flex:0 0 auto}
+.grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sec-label{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:600 13px var(--f-body);padding:8px 12px;border-radius:4px;border:1px solid var(--line);background:var(--chip);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.seg button:focus-visible,.btn:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.field{display:flex;flex-direction:column;gap:4px;flex:1 1 160px;min-width:0}
+.field label{font-size:12px;color:var(--muted);font-weight:600}
+input[type=text],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:7px 9px;width:100%}
+textarea{font-family:var(--f-mono);font-size:12.5px;min-height:150px;resize:vertical}
+.btn{font:600 13px var(--f-body);padding:9px 14px;border-radius:4px;border:1px solid var(--line);background:var(--chip);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.small{padding:6px 10px;font-size:12px}
+.btn.danger{color:var(--danger)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.note{font-size:12px;color:var(--muted);border-left:3px solid var(--accent);padding:6px 10px;background:var(--chip);border-radius:0 4px 4px 0;margin:0}
+.tbl-wrap{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--chip);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+td.num{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+td.name{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+td select{padding:3px 6px;font-size:12px;width:auto}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.stats{display:flex;flex-wrap:wrap;gap:6px}
+.stat{background:var(--chip);border-radius:4px;padding:4px 8px;font-size:12px}
+.stat b{font-family:var(--f-mono)}
+.preview{position:relative;min-width:0}
+.preview canvas{width:100%;height:auto;display:block;border-radius:6px;border:1px solid var(--line);background:#11161a;touch-action:none}
+.preview canvas.editing{cursor:grab;outline:2px dashed var(--accent);outline-offset:3px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.toast{font-size:12px;color:var(--muted)}
+.err{color:var(--danger)}
+.sq-list{display:flex;flex-direction:column;gap:8px}
+details.sq{border:1px solid var(--line);border-radius:5px;background:var(--bg)}
+details.sq summary{cursor:pointer;padding:9px 12px;font-weight:600;display:flex;align-items:center;gap:8px;list-style:none}
+details.sq summary::-webkit-details-marker{display:none}
+details.sq summary::after{content:"▾";margin-left:auto;color:var(--muted)}
+details.sq[open] summary::after{content:"▴"}
+details.sq summary .badge{font-family:var(--f-display);width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;color:#11161a;font-size:13px;flex:none}
+details.sq summary .share{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-weight:500}
+.sq-body{padding:4px 12px 12px;display:flex;flex-direction:column;gap:10px}
+.step{display:grid;grid-template-columns:76px minmax(0,1fr) minmax(0,1fr) auto;gap:6px;padding:8px;border-radius:4px;background:var(--chip)}
+.step .txt{grid-column:1/-1}
+.step input,.step select{font-size:12.5px;padding:5px 7px}
+.icon-btn{font:600 13px var(--f-body);border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:4px;padding:0 9px;cursor:pointer}
+.icon-btn:hover{color:var(--danger);border-color:var(--danger)}
+.gate{min-height:70vh;display:grid;place-items:center;padding-block:40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.gate form{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px}
+.gate h2{font-family:var(--f-display);font-weight:600;font-size:22px;letter-spacing:.04em;margin:0}
+.gate .err{font-size:12px;min-height:1em;margin:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="gate" id="gate">
+  <form id="gateForm" autocomplete="off">
+    <h2>insert code please.</h2>
+    <input type="text" id="gateCode" aria-label="Code" autocomplete="off" spellcheck="false">
+    <button class="btn primary" type="submit">Enter</button>
+    <p class="err" id="gateErr" aria-live="polite"></p>
+  </form>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div>
+      <h1 data-t="appTitle">Storm Battle Orders</h1>
+      <p class="sub" data-t="appSub"></p>
+    </div>
+    <div class="langs">
+      <div class="field"><label for="uiLang" data-t="uiLang"></label>
+        <select id="uiLang"><option value="en">English</option><option value="ko">한국어</option><option value="pt">Português (BR)</option></select></div>
+      <div class="field"><label for="imgLang" data-t="imgLang"></label>
+        <select id="imgLang"><option value="en">English</option><option value="ko">한국어</option><option value="pt">Português (BR)</option></select></div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-label="Setup">
+      <p class="sec-label" data-t="s1"></p>
+      <div class="seg" id="bfSeg">
+        <button type="button" data-v="desert" data-t="bf.desert"></button>
+        <button type="button" data-v="canyon" data-t="bf.canyon"></button>
+      </div>
+
+      <div id="desertOpts" class="row">
+        <div class="field"><label data-t="ourSide"></label>
+          <div class="seg" id="dSideSeg"><button type="button" data-v="W" data-t="west"></button><button type="button" data-v="E" data-t="east"></button></div></div>
+      </div>
+
+      <div id="canyonOpts" class="row" hidden>
+        <div class="field" style="flex-basis:100%"><label data-t="faction"></label>
+          <div class="seg" id="facSeg"><button type="button" data-v="rule" data-t="fac.rule"></button><button type="button" data-v="dawn" data-t="fac.dawn"></button></div></div>
+        <div class="field" id="dawnSideF"><label data-t="ourSpawn"></label>
+          <div class="seg" id="cSideSeg"><button type="button" data-v="L" data-t="sw"></button><button type="button" data-v="R" data-t="se"></button></div></div>
+        <div class="field" id="dawnRoleF"><label data-t="job"></label>
+          <div class="seg" id="roleSeg"><button type="button" data-v="assault" data-t="assault"></button><button type="button" data-v="hold" data-t="hold"></button></div></div>
+      </div>
+
+      <div class="row">
+        <div class="field"><label for="tag" data-t="tagL"></label><input type="text" id="tag" maxlength="40"></div>
+        <div class="field"><label for="when" data-t="whenL"></label><input type="text" id="when" maxlength="60"></div>
+      </div>
+
+      <p class="sec-label" data-t="s2"></p>
+      <textarea id="roster" spellcheck="false" aria-label="Roster"></textarea>
+      <p class="hint" data-ih="rosterHint"></p>
+      <div class="row"><button class="btn primary" type="button" id="applyBtn" data-t="build"></button><button class="btn" type="button" id="sampleBtn" data-t="sample"></button><span class="toast" id="parseMsg"></span></div>
+
+      <p class="sec-label" data-t="s3"></p>
+      <div class="stats" id="stats"></div>
+      <div class="tbl-wrap"><table><thead><tr><th>#</th><th data-t="thName"></th><th style="text-align:right" data-t="thPower"></th><th data-t="thAssign"></th></tr></thead><tbody id="tbody"></tbody></table></div>
+      <p class="hint" data-t="adjHint"></p>
+
+      <p class="sec-label" data-t="s4"></p>
+      <p class="hint" data-t="edHint"></p>
+      <div id="sqEditor" class="sq-list"></div>
+      <div class="row"><button class="btn" type="button" data-act="addSquad" id="addSqBtn" data-t="addSq"></button><button class="btn" type="button" data-act="resetPlan" id="resetPlanBtn" data-t="resetSq"></button></div>
+      <p class="hint" id="planMsg"></p>
+      <div class="field"><label for="tipsEd" data-t="tipsL"></label><textarea id="tipsEd" spellcheck="false" style="min-height:130px;font-family:var(--f-body);font-size:13px"></textarea></div>
+    </section>
+
+    <section class="preview" aria-label="Battle orders image">
+      <div class="toolbar">
+        <button class="btn primary" type="button" id="dlBtn" data-t="saveImg"></button>
+        <button class="btn" type="button" id="copyBtn" data-t="copyTxt"></button>
+        <button class="btn" type="button" id="editBtn" aria-pressed="false" data-t="move"></button>
+        <button class="btn" type="button" id="resetBtn" hidden data-t="resetMap"></button>
+        <span class="toast" id="toast"></span>
+      </div>
+      <p class="note" data-t="mapNote"></p>
+      <div style="height:10px"></div>
+      <canvas id="cv" width="1600" height="2400" aria-label="Battle orders image preview"></canvas>
+      <textarea id="copyFallback" hidden readonly aria-label="Orders text"></textarea>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+/* ---------------- storage helpers ---------------- */
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem('sbo:'+k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('sbo:'+k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------------- translations: [English, 한국어, Português (BR)] ---------------- */
+const LANGS = {en:0, ko:1, pt:2};
+const STR = {
+  // interface
+  appTitle:['Storm Battle Orders','스톰 전투 작전','Ordens de Batalha Storm'],
+  appSub:['Paste your alliance roster, pick the battlefield and faction, and get squad assignments drawn on one image you can post to the alliance.',
+          '연맹원 명단을 붙여넣고 전장과 진영을 고르면, 분대 배치를 이미지 한 장으로 만들어 연맹에 바로 올릴 수 있습니다.',
+          'Cole a lista da aliança, escolha o campo de batalha e a facção e receba a divisão dos esquadrões em uma única imagem para postar na aliança.'],
+  uiLang:['Interface language','화면 언어','Idioma da interface'],
+  imgLang:['Image language','이미지 언어','Idioma da imagem'],
+  s1:['1 · Battlefield','1 · 전장','1 · Campo de batalha'],
+  'bf.desert':['Desert Storm','사막 폭풍','Tempestade no Deserto'],
+  'bf.canyon':['Canyon Storm','협곡 폭풍','Tempestade no Cânion'],
+  ourSide:['Our spawn side','우리 시작 위치','Nosso lado de spawn'],
+  west:['West','서쪽','Oeste'], east:['East','동쪽','Leste'],
+  faction:['Our faction','우리 진영','Nossa facção'],
+  'fac.rule':['Rulebringers (1 alliance, north)','Rulebringers (1개 연맹, 북쪽)','Rulebringers (1 aliança, norte)'],
+  'fac.dawn':['Dawnbreakers (2 alliances, south)','Dawnbreakers (2개 연맹, 남쪽)','Dawnbreakers (2 alianças, sul)'],
+  ourSpawn:['Our spawn','우리 시작 위치','Nosso spawn'],
+  sw:['Dawnbreakers A (left)','던브레이커스 A (왼쪽)','Dawnbreakers A (esquerda)'], se:['Dawnbreakers B (right)','던브레이커스 B (오른쪽)','Dawnbreakers B (direita)'],
+  job:['Our job vs. ally','동맹 연맹과 역할 분담','Nossa função vs. aliado'],
+  assault:['Lab assault','연구소 공격','Ataque ao Laboratório'], hold:['Flank hold','측면 방어','Segurar o flanco'],
+  tagL:['Alliance tag / name','연맹 태그 / 이름','Tag / nome da aliança'],
+  whenL:['Match note (time, opponent)','경기 메모 (시간, 상대)','Nota da partida (horário, adversário)'],
+  s2:['2 · Roster','2 · 명단','2 · Lista'],
+  rosterHint:['One member per line: <code>Name, Power</code>. Tabs from a spreadsheet work too. Power can be <code>152.3M</code>, <code>1.2B</code>, <code>152300000</code> or just <code>152.3</code> (read as millions).',
+              '한 줄에 한 명씩 <code>이름, 파워</code>. 스프레드시트에서 복사한 내용도 됩니다. 파워는 <code>152.3M</code>, <code>1.2B</code>, <code>152300000</code> 또는 <code>152.3</code>(백만 단위) 모두 읽습니다.',
+              'Um membro por linha: <code>Nome, Poder</code>. Colar de planilha também funciona. O poder pode ser <code>152.3M</code>, <code>1.2B</code>, <code>152300000</code> ou só <code>152.3</code> (lido em milhões).'],
+  build:['Build orders','작전 만들기','Gerar ordens'],
+  sample:['Load sample roster','예시 명단 불러오기','Carregar lista de exemplo'],
+  s3:['3 · Adjust','3 · 조정','3 · Ajustes'],
+  thName:['Name','이름','Nome'], thPower:['Power','파워','Poder'], thAssign:['Assignment','배치','Função'],
+  adjHint:['“Auto” lets the planner decide. Pick a squad to lock someone in, “Sub” for the bench, or “Out” if they can\'t play.',
+           '“자동”은 플래너가 정합니다. 분대를 고르면 그 분대에 고정되고, “교체”는 대기 인원, “불참”은 제외입니다.',
+           '“Auto” deixa o planejador decidir. Escolha um esquadrão para fixar alguém, “Reserva” para o banco ou “Fora” se não puder jogar.'],
+  auto:['Auto','자동','Auto'], sub:['Sub','교체','Reserva'], out:['Out','불참','Fora'], bench:['Bench','대기 초과','Excedente'],
+  s4:['4 · Squads & orders','4 · 분대와 임무','4 · Esquadrões e ordens'],
+  edHint:['Rename squads, change their share of alliance power, and edit each order\'s time, target buildings and text. Changes are saved separately for each battlefield and faction setup.',
+          '분대 이름, 파워 비중, 각 임무의 시간·목표 건물·문구를 바꿀 수 있습니다. 변경 내용은 전장·진영 설정마다 따로 저장됩니다.',
+          'Renomeie esquadrões, altere a parcela de poder e edite horário, alvos e texto de cada ordem. As alterações ficam salvas separadamente para cada campo e facção.'],
+  addSq:['+ Add squad','+ 분대 추가','+ Adicionar esquadrão'],
+  resetSq:['Restore default squads','기본 분대로 복원','Restaurar esquadrões padrão'],
+  customMsg:['These squads are customized for this setup.','이 설정은 직접 수정한 분대를 쓰고 있습니다.','Esta configuração usa esquadrões personalizados.'],
+  customLang:['Your edited text stays as written. Switching the image language does not translate it; press “Restore default squads” to get translated defaults.',
+              '직접 수정한 문구는 자동 번역되지 않습니다. 번역된 기본값이 필요하면 “기본 분대로 복원”을 누르세요.',
+              'O texto editado não é traduzido automaticamente. Para ter os padrões traduzidos, clique em “Restaurar esquadrões padrão”.'],
+  tipsL:['Rules of engagement (one per line)','교전 수칙 (한 줄에 하나)','Regras de combate (uma por linha)'],
+  sqName:['Squad name','분대 이름','Nome do esquadrão'], weight:['Power weight','파워 비중','Peso de poder'],
+  roleL:['Role (one line)','역할 (한 줄)','Função (uma linha)'],
+  none:['— none —','— 없음 —','— nenhum —'],
+  addStep:['+ Add order','+ 임무 추가','+ Adicionar ordem'], delSq:['Remove squad','분대 삭제','Remover esquadrão'],
+  ofPower:['% of power','% 파워','% do poder'], untitled:['Untitled','이름 없음','Sem nome'],
+  newSq:['New Squad','새 분대','Novo Esquadrão'],
+  newRole:['Describe what this squad does.','이 분대의 역할을 적어 주세요.','Descreva o que este esquadrão faz.'],
+  newStep:['Write the first order.','첫 임무를 적어 주세요.','Escreva a primeira ordem.'],
+  aTime:['Time','시간','Horário'], aTarget:['Target building','목표 건물','Construção alvo'], aTarget2:['Second target','두 번째 목표','Segundo alvo'],
+  aText:['Order text','임무 문구','Texto da ordem'], aDel:['Remove this order','이 임무 삭제','Remover esta ordem'],
+  saveImg:['Save image (PNG)','이미지 저장 (PNG)','Salvar imagem (PNG)'],
+  copyTxt:['Copy orders as text','작전 텍스트 복사','Copiar ordens em texto'],
+  move:['Move buildings','건물 위치 옮기기','Mover construções'], done:['Done moving','옮기기 완료','Concluir'],
+  resetMap:['Reset map','지도 초기화','Redefinir mapa'],
+  mapNote:['Building positions follow the in-game layout. If something sits elsewhere on your server, press “Move buildings” and drag it. The layout is remembered in this browser.',
+           '건물 위치는 게임 내 배치를 따릅니다. 서버에서 위치가 다르면 “건물 위치 옮기기”를 누르고 끌어서 옮기세요. 배치는 이 브라우저에 저장됩니다.',
+           'As posições seguem o layout do jogo. Se algo estiver em outro lugar no seu servidor, clique em “Mover construções” e arraste. O layout fica salvo neste navegador.'],
+  readN:['{n} members read','{n}명 읽음','{n} membros lidos'],
+  skipN:['{n} line(s) skipped','{n}줄 건너뜀','{n} linha(s) ignorada(s)'],
+  sampleNote:['sample roster, replace with yours','예시 명단입니다. 실제 명단으로 바꿔 주세요','lista de exemplo, substitua pela sua'],
+  emptyTable:['Paste your roster above and press “Build orders”.','위에 명단을 붙여넣고 “작전 만들기”를 누르세요.','Cole sua lista acima e clique em “Gerar ordens”.'],
+  tSaved:['Saved.','저장했습니다.','Salvo.'], tCancel:['Save cancelled.','저장을 취소했습니다.','Salvamento cancelado.'],
+  tNoImg:['Could not create the image.','이미지를 만들지 못했습니다.','Não foi possível gerar a imagem.'],
+  tFallback:['If no download started, right-click or long-press the image below to save it.','다운로드가 시작되지 않으면 아래 이미지를 우클릭하거나 길게 눌러 저장하세요.','Se o download não começar, clique com o botão direito ou segure a imagem abaixo para salvar.'],
+  tCopied:['Orders copied. Paste them into alliance chat.','작전을 복사했습니다. 연맹 채팅에 붙여넣으세요.','Ordens copiadas. Cole no chat da aliança.'],
+  tSelCopy:['Select all and copy the text below.','아래 텍스트를 전체 선택해 복사하세요.','Selecione tudo e copie o texto abaixo.'],
+  tMapReset:['Map reset to the default layout.','지도를 기본 배치로 되돌렸습니다.','Mapa redefinido para o layout padrão.'],
+  tRestored:['Default squads restored.','기본 분대로 되돌렸습니다.','Esquadrões padrão restaurados.'],
+
+  // image
+  hdr:['ALLIANCE BATTLE ORDERS','연맹 전투 작전','ORDENS DE BATALHA DA ALIANÇA'],
+  startersTotal:['STARTERS · TOTAL POWER','출전 인원 · 총 파워','TITULARES · PODER TOTAL'],
+  subsT:['SUBSTITUTES','교체 인원','RESERVAS'],
+  subsDesc:['Stand by outside. Swap in when a starter drops or the leader calls.','밖에서 대기. 출전 인원이 빠지거나 리더가 부르면 투입.','Aguarde fora. Entre quando um titular sair ou o líder chamar.'],
+  noneImg:['None','없음','Nenhum'],
+  rulesT:['RULES OF ENGAGEMENT','교전 수칙','REGRAS DE COMBATE'],
+  footer:['Map layout is simplified. Building values come from community guides and can change with game updates.',
+          '지도는 단순화한 배치입니다. 건물 수치는 커뮤니티 공략 기준이며 게임 업데이트로 바뀔 수 있습니다.',
+          'O mapa é simplificado. Os valores das construções vêm de guias da comunidade e podem mudar com atualizações.'],
+  playersN:['{n} players','{n}명','{n} jogadores'],
+  noPlayers:['No players assigned','배정된 인원 없음','Nenhum jogador'],
+  lgOpen:['Opening target','초반 목표','Alvo inicial'], lgLater:['Later target','이후 목표','Alvo seguinte'],
+  us:['★ US','★ 우리','★ NÓS'],
+  zWest:['WEST SPAWN','서쪽 출발지','SPAWN OESTE'], zEast:['EAST SPAWN','동쪽 출발지','SPAWN LESTE'],
+  zA1:['RULEBRINGERS','룰브링어','RULEBRINGERS'],
+  zB:['SAFE ZONE','안전지대','ZONA SEGURA'],
+  zA2:['DAWNBREAKERS A','던브레이커스 A','DAWNBREAKERS A'],
+  zA3:['DAWNBREAKERS B','던브레이커스 B','DAWNBREAKERS B'],
+  subDesert:['Our spawn: {side}','우리 시작 위치: {side}','Nosso spawn: {side}'],
+  subRule:['Faction: Rulebringers (north, 1 alliance vs 2)','진영: Rulebringers (북쪽, 1개 연맹 대 2개)','Facção: Rulebringers (norte, 1 aliança contra 2)'],
+  subDawn:['Faction: {side} · {role}','진영: {side} · {role}','Facção: {side} · {role}'],
+  subsLine:['SUBS','교체','RESERVAS'],
+
+  // times
+  tmAny:['Any','수시','Sempre'], tmUnlock:['Unlock','개방 시','Ao abrir'], tmLate:['Late','후반','Final'],
+  tmMid:['Mid','중반','Meio'], tmAlways:['Always','항상','Sempre'], tmLast3:['Last 3 min','마지막 3분','Últ. 3 min'],
+
+  // buildings
+  'b.or1':['Oil Refinery I','정유소 I','Refinaria I'], 'b.or2':['Oil Refinery II','정유소 II','Refinaria II'],
+  'b.silo':['Nuclear Silo','핵 사일로','Silo Nuclear'], 'b.ars':['Arsenal','무기고','Arsenal'],
+  'b.merc':['Mercenary Factory','용병 공장','Fábrica de Mercenários'],
+  'b.info':['Info Center','정보 센터','Centro de Informações'], 'b.sci':['Science Hub','과학 허브','Centro de Ciência'],
+  'b.fh':['Field Hospital','야전 병원','Hospital de Campanha'], 'b.ow':['Oil Well','유정','Poço de Petróleo'],
+  'b.fh1':['Field Hospital I','야전 병원 I','Hospital de Campanha I'], 'b.fh2':['Field Hospital II','야전 병원 II','Hospital de Campanha II'],
+  'b.fh3':['Field Hospital III','야전 병원 III','Hospital de Campanha III'], 'b.fh4':['Field Hospital IV','야전 병원 IV','Hospital de Campanha IV'],
+  'q.take':['Take {b}.','{b} 점령.','Tome {b}.'],
+  'q.cap':['Capture {b} ({fx}).','{b} 점령 ({fx}).','Capture {b} ({fx}).'],
+  'b.vl':['Virus Lab','바이러스 연구소','Laboratório de Vírus'], 'b.pt':['Power Tower','파워 타워','Torre de Energia'],
+  'b.ds1':['Defense System I','방어 시스템 I','Sistema de Defesa I'], 'b.ds2':['Defense System II','방어 시스템 II','Sistema de Defesa II'],
+  'b.sf1':['Serum Factory I','혈청 공장 I','Fábrica de Soro I'], 'b.sf2':['Serum Factory II','혈청 공장 II','Fábrica de Soro II'],
+  'b.dc1':['Data Center I','데이터 센터 I','Central de Dados I'], 'b.dc2':['Data Center II','데이터 센터 II','Central de Dados II'],
+  'b.wh1':['Sample Warehouse I','샘플 창고 I','Depósito de Amostras I'], 'b.wh2':['Sample Warehouse II','샘플 창고 II','Depósito de Amostras II'],
+  'b.wh3':['Sample Warehouse III','샘플 창고 III','Depósito de Amostras III'], 'b.wh4':['Sample Warehouse IV','샘플 창고 IV','Depósito de Amostras IV'],
+  'g.or':['0:00 · high points','0:00 · 높은 점수','0:00 · muitos pontos'],
+  'g.silo':['10:00 · top points','10:00 · 최고 점수','10:00 · mais pontos'],
+  'g.ars':['10:00 · our heroes +15%','10:00 · 아군 영웅 +15%','10:00 · nossos heróis +15%'],
+  'g.merc':['10:00 · enemy −15%','10:00 · 적 −15%','10:00 · inimigo −15%'],
+  'g.info':['0:00 · faster scoring','0:00 · 점수 지급 가속','0:00 · pontuação mais rápida'],
+  'g.sci':['0:00 · teleport CD −50%','0:00 · 텔레포트 쿨 −50%','0:00 · recarga de teleporte −50%'],
+  'g.fh':['0:00 · heals','0:00 · 치료','0:00 · cura'],
+  'g.ow':['20:00 · points only','20:00 · 점수만','20:00 · só pontos'],
+  'g.vl':['~12:00 · 120 pts/s','~12:00 · 초당 120점','~12:00 · 120 pts/s'],
+  'g.pt':['0:00 · 50 pts/s · shield','0:00 · 초당 50점 · 보호막','0:00 · 50 pts/s · escudo'],
+  'g.ds':['late · 20 pts/s','후반 · 초당 20점','final · 20 pts/s'],
+  'g.sf':['1st unlock · buffs','첫 개방 · 버프','1º a abrir · buffs'],
+  'g.dc':['0:00 · 20 pts/s','0:00 · 초당 20점','0:00 · 20 pts/s'],
+  'g.wh':['0:00 · 15 pts/s','0:00 · 초당 15점','0:00 · 15 pts/s'],
+
+  // squads: desert
+  'q.strike':['Strike','돌격대','Ataque'],
+  'q.strike.r':['Strongest players. Leader calls the rallies.','최강 인원. 리더가 집결 공격을 지휘.','Jogadores mais fortes. O líder chama os rallies.'],
+  'q.strike.1':['Take {b}. Leave 2 players garrisoned.','{b} 점령. 2명은 주둔.','Tome {b}. Deixe 2 jogadores guarnecendo.'],
+  'q.strike.2':['Rally the Nuclear Silo and hold it to the end.','핵 사일로 집결 공격 후 끝까지 사수.','Faça rally no Silo Nuclear e segure até o fim.'],
+  'q.van':['Vanguard','선봉대','Vanguarda'],
+  'q.van.r':['Second strike group.','제2 공격조.','Segundo grupo de ataque.'],
+  'q.van.1':['Take Oil Refinery II. Leave 2 garrisoned.','정유소 II 점령. 2명은 주둔.','Tome a Refinaria II. Deixe 2 guarnecendo.'],
+  'q.van.2':['Capture the Arsenal (+15% for our heroes).','무기고 점령 (아군 영웅 +15%).','Capture o Arsenal (+15% para nossos heróis).'],
+  'q.ctl':['Control','통제조','Controle'],
+  'q.ctl.r':['Hospital first, then the second center building.','병원 확보 후 두 번째 중앙 건물로.','Hospital primeiro, depois o segundo prédio central.'],
+  'q.ctl.1':['Take Info Center and Science Hub.','정보 센터와 과학 허브 점령.','Tome o Centro de Informações e o Centro de Ciência.'],
+  'q.ctl.2':['Capture the Mercenary Factory (enemy −15%).','용병 공장 점령 (적 −15%).','Capture a Fábrica de Mercenários (inimigo −15%).'],
+  'q.hg':['Home Guard','본진 수비대','Guarda da Base'],
+  'q.hg.r':['Hold our side of the map.','우리 쪽 지역 사수.','Segure o nosso lado do mapa.'],
+  'q.hg.1':['Take {b} and guard our side.','{b} 점령 후 우리 쪽 방어.','Tome {b} e proteja o nosso lado.'],
+  'q.hg.2':['Reinforce our refinery whenever it is attacked.','우리 정유소가 공격받으면 즉시 증원.','Reforce a nossa refinaria sempre que for atacada.'],
+  'q.rd':['Raiders','습격대','Invasores'],
+  'q.rd.r':['Fast movers. Pull enemy players off the center.','기동조. 적을 중앙에서 끌어냄.','Rápidos. Puxam inimigos para fora do centro.'],
+  'q.rd.1':['Steal {b} on the enemy side.','상대 쪽 {b} 탈취.','Roube {b} do lado inimigo.'],
+  'q.rd.2':['Collect Supply Boxes after every capture.','점령 때마다 보급 상자 회수.','Recolha as Caixas de Suprimento após cada captura.'],
+  'q.rd.3':['Hit {b} only if our buildings are safe.','우리 건물이 안전할 때만 {b} 공격.','Ataque {b} só se as nossas construções estiverem seguras.'],
+  'p.d1':['Recall all troops to base 15 min before start. Starters enter, subs stand by to swap in.','시작 15분 전 모든 부대를 본진으로 귀환. 출전 인원만 입장하고 교체 인원은 대기.','Recolha todas as tropas à base 15 min antes do início. Titulares entram, reservas aguardam.'],
+  'p.d2':['Buildings win, kills do not. Never leave a captured building empty.','승패는 킬이 아니라 건물로 갈립니다. 점령한 건물을 절대 비우지 마세요.','Construções vencem, abates não. Nunca deixe uma construção capturada vazia.'],
+  'p.d3':['10:00 the Silo, Arsenal and Mercenary Factory open. Do not stack everyone on the Silo.','10:00에 사일로·무기고·용병 공장 개방. 사일로에 전원 몰리지 마세요.','Aos 10:00 abrem o Silo, o Arsenal e a Fábrica de Mercenários. Não coloque todos no Silo.'],
+  'p.d4':['Save teleports for defense and the center fights.','텔레포트는 방어와 중앙 전투용으로 아끼세요.','Guarde os teleportes para defesa e lutas no centro.'],
+  'p.d5':['Holding Arsenal + Mercenary Factory together swings the center fight by about 30%.','무기고와 용병 공장을 함께 잡으면 중앙 전투에서 약 30% 우위.','Segurar Arsenal + Fábrica de Mercenários juntos dá cerca de 30% de vantagem no centro.'],
+  'p.d6':['Last 5 min: hold everything. Hit an enemy refinery only if ours are safe.','마지막 5분: 전부 사수. 우리 정유소가 안전할 때만 적 정유소 공격.','Últimos 5 min: segure tudo. Ataque refinaria inimiga só se as nossas estiverem seguras.'],
+
+  // squads: canyon rulebringers
+  'q.tg':['Tower Guard','타워 수비대','Guarda da Torre'],
+  'q.tg.r':['Take and keep the Power Tower.','파워 타워 점령 후 사수.','Tome e mantenha a Torre de Energia.'],
+  'q.tg.1':['Take the Power Tower first and raise the shield.','파워 타워를 먼저 점령하고 보호막 가동.','Tome a Torre de Energia primeiro e ative o escudo.'],
+  'q.tg.2':['Keep holding. Help the Lab only when called.','계속 사수. 호출 시에만 연구소 지원.','Continue segurando. Ajude o Laboratório só quando chamado.'],
+  'q.ls':['Lab Strike','연구소 공격대','Ataque ao Lab'],
+  'q.ls.rr':['Strongest group. Carries the Judicator.','최강 그룹. Judicator 담당.','Grupo mais forte. Leva o Judicator.'],
+  'q.ls.r1':['Take Data Center I.','데이터 센터 I 점령.','Tome a Central de Dados I.'],
+  'q.ls.r2':['Take Serum Factory I as soon as it opens.','혈청 공장 I 개방 즉시 점령.','Tome a Fábrica de Soro I assim que abrir.'],
+  'q.ls.r3':['All-in on the Virus Lab with the Judicator.','Judicator와 함께 바이러스 연구소 총공격.','Tudo no Laboratório de Vírus com o Judicator.'],
+  'q.wing':['Wing','측면대','Ala'],
+  'q.wing.r':['Right flank and the Lab approach.','우측 측면과 연구소 진입로.','Flanco direito e acesso ao Laboratório.'],
+  'q.wing.1':['Take Data Center II.','데이터 센터 II 점령.','Tome a Central de Dados II.'],
+  'q.wing.2':['Take Serum Factory II.','혈청 공장 II 점령.','Tome a Fábrica de Soro II.'],
+  'q.wing.3':['Take Defense System II to cover the Lab.','방어 시스템 II 점령해 연구소 엄호.','Tome o Sistema de Defesa II para cobrir o Laboratório.'],
+  'q.hold':['Holders','거점 수비대','Defensores'],
+  'q.hold.rr':['Hold the north after the strike teams move on.','공격대가 이동한 뒤 북쪽 거점 사수.','Segure o norte depois que os grupos de ataque avançarem.'],
+  'q.hold.r1':['Take over Data Centers I and II from the strike teams.','공격대로부터 데이터 센터 I, II 인계.','Assuma as Centrais de Dados I e II dos grupos de ataque.'],
+  'q.hold.r2':['Hold everything. No chasing.','전부 사수. 추격 금지.','Segure tudo. Sem perseguir.'],
+  'p.r1':['You are 20 against up to 40. Stay concentrated, never spread thin.','우리는 20명, 상대는 최대 40명. 흩어지지 말고 뭉치세요.','Somos 20 contra até 40. Fiquem concentrados, nunca espalhados.'],
+  'p.r2':['Power Tower first: it unlocks the shield over the center.','파워 타워가 최우선: 중앙 보호막이 열립니다.','Torre de Energia primeiro: ela libera o escudo sobre o centro.'],
+  'p.r3':['Give the Judicator to the strongest decision-maker. Save it for the Virus Lab fight.','Judicator는 판단력 좋은 최강자에게. 바이러스 연구소 전투까지 아끼세요.','Dê o Judicator ao jogador mais forte e decidido. Guarde para a luta no Laboratório.'],
+  'p.r4':['Judicator teleports hit adjacent bases for ~5,000 of ~6,000 durability. Each kill cuts its cooldown.','Judicator 텔레포트는 인접 기지에 약 5,000 피해(내구도 약 6,000). 기지를 파괴할 때마다 쿨타임 감소.','O teleporte do Judicator tira ~5.000 de ~6.000 de durabilidade das bases vizinhas. Cada destruição reduz a recarga.'],
+  'p.r5':['Do not leave the Virus Lab in the final minutes.','마지막 몇 분간 바이러스 연구소를 떠나지 마세요.','Não saia do Laboratório de Vírus nos minutos finais.'],
+  'p.r6':['Last 3 min: everyone holds. Score decides, not kills.','마지막 3분: 전원 사수. 킬이 아니라 점수로 승부.','Últimos 3 min: todos seguram. Pontos decidem, não abates.'],
+
+  // squads: canyon dawnbreakers
+  'q.ls.ar':['Strongest group. Leads the Virus Lab assault.','최강 그룹. 바이러스 연구소 공격 선봉.','Grupo mais forte. Lidera o ataque ao Laboratório.'],
+  'q.inner':['Take the inner Warehouse.','안쪽 샘플 창고 점령.','Tome o Depósito interno.'],
+  'q.oursf':['Take our Serum Factory.','우리 쪽 혈청 공장 점령.','Tome a nossa Fábrica de Soro.'],
+  'q.ls.a3':['Assault the Virus Lab together with the ally.','동맹과 함께 바이러스 연구소 공격.','Ataque o Laboratório de Vírus junto com o aliado.'],
+  'q.tp':['Tower Push','타워 압박대','Pressão na Torre'],
+  'q.tp.r':['Stop the enemy shield.','적 보호막 저지.','Impeça o escudo inimigo.'],
+  'q.tp.1':['Contest the Power Tower before the shield goes up.','보호막이 켜지기 전에 파워 타워 쟁탈.','Dispute a Torre de Energia antes do escudo subir.'],
+  'q.tp.2':['Take our Defense System to cover the Lab.','우리 쪽 방어 시스템 점령해 연구소 엄호.','Tome o nosso Sistema de Defesa para cobrir o Laboratório.'],
+  'q.hold.dr':['Points on our flank.','우리 측면 점수 확보.','Pontos no nosso flanco.'],
+  'q.outer':['Take the outer Warehouse.','바깥쪽 샘플 창고 점령.','Tome o Depósito externo.'],
+  'q.never':['Never leave a captured building empty.','점령한 건물을 절대 비우지 마세요.','Nunca deixe uma construção capturada vazia.'],
+  'q.flex':['Flex','유격대','Flex'],
+  'q.flex.r':['Reinforce wherever the leader calls.','리더 호출 시 어디든 증원.','Reforça onde o líder chamar.'],
+  'q.ourdc':['Take our Data Center.','우리 쪽 데이터 센터 점령.','Tome a nossa Central de Dados.'],
+  'q.flex.2':['Reinforce the Virus Lab garrison.','바이러스 연구소 주둔군 증원.','Reforce a guarnição do Laboratório.'],
+  'q.anc':['Anchor','중심 수비대','Âncora'],
+  'q.anc.r':['Strongest group. Holds the Lab approach.','최강 그룹. 연구소 진입로 사수.','Grupo mais forte. Segura o acesso ao Laboratório.'],
+  'q.anc.3':['Take our Defense System and hold the Lab approach.','우리 쪽 방어 시스템 점령 후 연구소 진입로 사수.','Tome o nosso Sistema de Defesa e segure o acesso ao Laboratório.'],
+  'q.rd.nr':['Pressure the north.','북쪽 압박.','Pressione o norte.'],
+  'q.rd.n2':['Pressure the Power Tower to pull defenders away.','파워 타워를 압박해 수비 병력을 끌어냄.','Pressione a Torre de Energia para atrair defensores.'],
+  'q.lsup':['Lab Support','연구소 지원대','Apoio ao Lab'],
+  'q.lsup.r':['Back up the ally on the Lab.','연구소의 동맹 지원.','Apoie o aliado no Laboratório.'],
+  'q.lsup.1':['Help Anchor take the inner Warehouse.','중심 수비대와 함께 안쪽 창고 점령.','Ajude a Âncora a tomar o Depósito interno.'],
+  'q.lsup.2':['Reinforce the ally on the Virus Lab.','바이러스 연구소의 동맹 증원.','Reforce o aliado no Laboratório de Vírus.'],
+  'p.agreeA':['Agree with the ally before start: we assault the Virus Lab, they hold the flank.','시작 전 동맹과 합의: 우리는 바이러스 연구소 공격, 동맹은 측면 방어.','Combine com o aliado antes do início: nós atacamos o Laboratório, eles seguram o flanco.'],
+  'p.agreeH':['Agree with the ally before start: we hold the flank, they assault the Virus Lab.','시작 전 동맹과 합의: 우리는 측면 방어, 동맹은 바이러스 연구소 공격.','Combine com o aliado antes do início: nós seguramos o flanco, eles atacam o Laboratório.'],
+  'p.w2':['Spread bases apart. The Judicator hits adjacent bases for ~5,000 of ~6,000 durability.','기지를 서로 떨어뜨리세요. Judicator는 인접 기지에 약 5,000 피해(내구도 약 6,000).','Espalhem as bases. O Judicator tira ~5.000 de ~6.000 de durabilidade das bases vizinhas.'],
+  'p.w3':['Marked by the Judicator? Teleport away at the last moment. Survived a hit? Cast Field Hospital.','Judicator 표적이 되면 마지막 순간에 텔레포트로 회피. 버텼다면 즉시 야전 병원 사용.','Marcado pelo Judicator? Teleporte no último momento. Sobreviveu? Use o Hospital de Campanha.'],
+  'p.w4':['If a head-on hit on the Lab fails, cast Artillery Turret repeatedly to wear the garrison down.','연구소 정면 공격이 실패하면 포병 포탑을 반복 사용해 주둔군을 깎으세요.','Se o ataque frontal ao Laboratório falhar, use a Torre de Artilharia várias vezes para desgastar a guarnição.'],
+  'p.w5':['Do not rush the center at the start. Take nearby buildings and garrison each one.','초반에 중앙으로 돌진하지 말고 가까운 건물부터 점령해 주둔하세요.','Não corra para o centro no início. Tome as construções próximas e guarneça cada uma.'],
+  'p.w6':['Last 3 min: hold points. Score decides, not kills.','마지막 3분: 거점 사수. 킬이 아니라 점수로 승부.','Últimos 3 min: segurem os pontos. Pontos decidem, não abates.'],
+};
+function tr(key, lang, vars){
+  const row = STR[key]; let s = row ? (row[LANGS[lang] ?? 0] ?? row[0]) : key;
+  if (vars) Object.keys(vars).forEach(k => { s = s.split('{' + k + '}').join(vars[k]); });
+  return s;
+}
+
+/* ---------------- battlefield data ---------------- */
+// Map space is 1000 x 620. Positions are schematic and can be dragged by the user.
+const BF = {
+  desert: {
+    key:'bf.desert', starters: 20, subs: 10, theme:'desert',
+    // positions follow the in-game Desert Storm layout (ring around the Nuclear Silo)
+    buildings: [
+      {id:'info',n:'b.info',g:'g.info', x:240, y:92,  tier:1, ic:'dish',   col:'#7d97a8'},
+      {id:'ars', n:'b.ars', g:'g.ars',  x:466, y:168, tier:2, ic:'shield', col:'#e0a33a'},
+      {id:'fh4', n:'b.fh4', g:'g.fh',   x:712, y:84,  tier:1, ic:'cross',  col:'#d8574f'},
+      {id:'or1', n:'b.or1', g:'g.or',   x:127, y:218, tier:2, ic:'drop',   col:'#45b06f'},
+      {id:'fh2', n:'b.fh2', g:'g.fh',   x:843, y:218, tier:1, ic:'cross',  col:'#d8574f'},
+      {id:'silo',n:'b.silo',g:'g.silo', x:485, y:300, tier:3, ic:'atom',   col:'#a970f0'},
+      {id:'fh1', n:'b.fh1', g:'g.fh',   x:125, y:338, tier:1, ic:'cross',  col:'#d8574f'},
+      {id:'or2', n:'b.or2', g:'g.or',   x:843, y:350, tier:2, ic:'drop',   col:'#45b06f'},
+      {id:'merc',n:'b.merc',g:'g.merc', x:466, y:428, tier:2, ic:'gear',   col:'#e0a33a'},
+      {id:'fh3', n:'b.fh3', g:'g.fh',   x:276, y:500, tier:1, ic:'cross',  col:'#d8574f'},
+      {id:'sci', n:'b.sci', g:'g.sci',  x:654, y:508, tier:1, ic:'flask',  col:'#7d97a8'},
+    ],
+    links: [['info','or1'],['info','ars'],['ars','fh4'],['fh4','fh2'],['or1','silo'],['or1','fh1'],['ars','silo'],['fh2','silo'],
+            ['fh2','or2'],['fh1','silo'],['or2','silo'],['fh1','fh3'],['fh3','merc'],['merc','silo'],['merc','sci'],['sci','or2']],
+    zones(cfg){ return [
+      {band:'L', k:'zWest', ours: cfg.dSide==='W'},
+      {band:'R', k:'zEast', ours: cfg.dSide==='E'},
+    ]; },
+  },
+  canyon: {
+    key:'bf.canyon', starters: 20, subs: 10, theme:'canyon',
+    // positions follow the in-game Canyon Storm layout (Rulebringers north, Dawnbreakers A/B south)
+    buildings: [
+      {id:'dc1', n:'b.dc1', g:'g.dc', x:285, y:108, tier:1, ic:'dish',   col:'#2fc4a3'},
+      {id:'dc2', n:'b.dc2', g:'g.dc', x:741, y:108, tier:1, ic:'dish',   col:'#2fc4a3'},
+      {id:'sf1', n:'b.sf1', g:'g.sf', x:168, y:262, tier:1, ic:'drop',   col:'#4b8fe6'},
+      {id:'pt',  n:'b.pt',  g:'g.pt', x:509, y:262, tier:2, ic:'bolt',   col:'#2fc4a3'},
+      {id:'ds2', n:'b.ds2', g:'g.ds', x:850, y:262, tier:1, ic:'target', col:'#9d7de6'},
+      {id:'ds1', n:'b.ds1', g:'g.ds', x:168, y:390, tier:1, ic:'target', col:'#9d7de6'},
+      {id:'vl',  n:'b.vl',  g:'g.vl', x:509, y:390, tier:3, ic:'bio',    col:'#9d7de6'},
+      {id:'sf2', n:'b.sf2', g:'g.sf', x:850, y:390, tier:1, ic:'drop',   col:'#4b8fe6'},
+      {id:'wh1', n:'b.wh1', g:'g.wh', x:168, y:500, tier:0, ic:'box',    col:'#2fc4a3'},
+      {id:'wh2', n:'b.wh2', g:'g.wh', x:395, y:500, tier:0, ic:'box',    col:'#2fc4a3'},
+      {id:'wh3', n:'b.wh3', g:'g.wh', x:623, y:500, tier:0, ic:'box',    col:'#2fc4a3'},
+      {id:'wh4', n:'b.wh4', g:'g.wh', x:850, y:500, tier:0, ic:'box',    col:'#2fc4a3'},
+    ],
+    links: [],
+    zones(cfg){ return [
+      {x:409,y:22, w:200,h:40, k:'zA1', ours: cfg.fac==='rule'},
+      {x:287,y:170,w:446,h:44, k:'zB', ours:false, neutral:true},
+      {x:150,y:568,w:260,h:40, k:'zA2', ours: cfg.fac==='dawn' && cfg.cSide==='L'},
+      {x:610,y:568,w:260,h:40, k:'zA3', ours: cfg.fac==='dawn' && cfg.cSide==='R'},
+    ]; },
+  }
+};
+
+const SQ_COLORS = ['#f2b705','#46a9e0','#ef6a3c','#5fd39a','#b98af0','#ff8fb1'];
+const MAX_SQUADS = SQ_COLORS.length;
+
+/* ---------------- default plans ---------------- */
+function buildPlan(cfg, L){
+  const T = k => tr(k, L);
+  const sq = (n, r, w, steps) => ({name:T(n), role:T(r), w, steps: steps.map(([t, ids, x]) => ({t: t.startsWith('tm') ? T(t) : t, ids, txt:T(x)}))});
+  if (cfg.bf === 'desert'){
+    const W = cfg.dSide === 'W';
+    const o = W ? {or:'or1', ut:'info', c1:'ars', fhA:'fh1', c2:'merc', fhB:'fh3', efh:'fh4', eor:'or2'}
+                : {or:'or2', ut:'sci', c1:'merc', fhA:'fh2', c2:'ars', fhB:'fh4', efh:'fh3', eor:'or1'};
+    const N = id => tr('b.' + id, L);
+    const fx = id => tr(BF.desert.buildings.find(b => b.id === id).g, L).split(' · ').slice(1).join(' · ');
+    const S = (k, v) => tr(k, L, v);
+    return {
+      subtitle: tr('subDesert', L, {side: T(W ? 'west' : 'east')}),
+      squads: [
+        {name:T('q.strike'), role:T('q.strike.r'), w:.30, steps:[
+          {t:'0:00', ids:[o.or], txt:S('q.strike.1', {b:N(o.or)})},
+          {t:'10:00', ids:['silo'], txt:T('q.strike.2')}]},
+        {name:T('q.van'), role:T('q.van.r'), w:.22, steps:[
+          {t:'0:00', ids:[o.ut], txt:S('q.take', {b:N(o.ut)})},
+          {t:'10:00', ids:[o.c1], txt:S('q.cap', {b:N(o.c1), fx:fx(o.c1)})}]},
+        {name:T('q.ctl'), role:T('q.ctl.r'), w:.18, steps:[
+          {t:'0:00', ids:[o.fhA], txt:S('q.take', {b:N(o.fhA)})},
+          {t:'10:00', ids:[o.c2], txt:S('q.cap', {b:N(o.c2), fx:fx(o.c2)})}]},
+        {name:T('q.hg'), role:T('q.hg.r'), w:.15, steps:[
+          {t:'0:00', ids:[o.fhB], txt:S('q.hg.1', {b:N(o.fhB)})},
+          {t:T('tmAny'), ids:[o.or], txt:T('q.hg.2')}]},
+        {name:T('q.rd'), role:T('q.rd.r'), w:.15, steps:[
+          {t:'0:00', ids:[o.efh], txt:S('q.rd.1', {b:N(o.efh)})},
+          {t:T('tmAny'), ids:[], txt:T('q.rd.2')},
+          {t:T('tmLate'), ids:[o.eor], txt:S('q.rd.3', {b:N(o.eor)})}]},
+      ],
+      tips: ['p.d1','p.d2','p.d3','p.d4','p.d5','p.d6'].map(T),
+    };
+  }
+  if (cfg.fac === 'rule'){
+    return {
+      subtitle: T('subRule'),
+      squads: [
+        sq('q.tg','q.tg.r',.30,[['0:00',['pt'],'q.tg.1'],['~12:00',['pt'],'q.tg.2']]),
+        sq('q.ls','q.ls.rr',.30,[['0:00',['dc1'],'q.ls.r1'],['tmUnlock',['sf1'],'q.ls.r2'],['~12:00',['vl'],'q.ls.r3']]),
+        sq('q.wing','q.wing.r',.22,[['0:00',['dc2'],'q.wing.1'],['tmUnlock',['sf2'],'q.wing.2'],['tmLate',['ds2'],'q.wing.3']]),
+        sq('q.hold','q.hold.rr',.18,[['tmMid',['dc1','dc2'],'q.hold.r1'],['tmLast3',[],'q.hold.r2']]),
+      ],
+      tips: ['p.r1','p.r2','p.r3','p.r4','p.r5','p.r6'].map(T),
+    };
+  }
+  const Lf = cfg.cSide === 'L';
+  const o = Lf ? {wo:'wh1', wi:'wh2', sf:'sf1', ds:'ds1', dc:'dc1'} : {wo:'wh4', wi:'wh3', sf:'sf2', ds:'ds2', dc:'dc2'};
+  const squads = cfg.role === 'assault' ? [
+    sq('q.ls','q.ls.ar',.32,[['0:00',[o.wi],'q.inner'],['tmUnlock',[o.sf],'q.oursf'],['~12:00',['vl'],'q.ls.a3']]),
+    sq('q.tp','q.tp.r',.25,[['0:00',['pt'],'q.tp.1'],['tmLate',[o.ds],'q.tp.2']]),
+    sq('q.hold','q.hold.dr',.23,[['0:00',[o.wo],'q.outer'],['tmAlways',[],'q.never']]),
+    sq('q.flex','q.flex.r',.20,[['0:00',[o.dc],'q.ourdc'],['~12:00',['vl'],'q.flex.2']]),
+  ] : [
+    sq('q.anc','q.anc.r',.30,[['0:00',[o.wi],'q.inner'],['tmUnlock',[o.sf],'q.oursf'],['tmLate',[o.ds],'q.anc.3']]),
+    sq('q.rd','q.rd.nr',.25,[['0:00',[o.dc],'q.ourdc'],['tmMid',['pt'],'q.rd.n2']]),
+    sq('q.hold','q.hold.dr',.25,[['0:00',[o.wo],'q.outer'],['tmAlways',[],'q.never']]),
+    sq('q.lsup','q.lsup.r',.20,[['0:00',[o.wi],'q.lsup.1'],['~12:00',['vl'],'q.lsup.2']]),
+  ];
+  return {
+    subtitle: tr('subDawn', L, {side: T(Lf ? 'sw' : 'se'), role: T(cfg.role)}),
+    squads,
+    tips: [cfg.role === 'assault' ? 'p.agreeA' : 'p.agreeH', 'p.w2','p.w3','p.w4','p.w5','p.w6'].map(T),
+  };
+}
+
+/* ---------------- roster parsing ---------------- */
+function toMillions(numStr, suf){
+  const v = parseFloat(numStr.replace(/,/g,''));
+  if (!isFinite(v)) return NaN;
+  const s = (suf||'').toUpperCase();
+  if (s === 'B') return v*1000;
+  if (s === 'M') return v;
+  if (s === 'K') return v/1000;
+  return v >= 100000 ? v/1e6 : v;
+}
+function parseRoster(text){
+  const out = [], bad = [];
+  text.split(/\r?\n/).forEach(raw => {
+    const line = raw.trim();
+    if (!line) return;
+    let m = line.match(/^(.+?)[\s,;|\t]+([\d][\d.,]*)\s*([kKmMbB])?\s*$/);
+    let name, p;
+    if (m){ name = m[1]; p = toMillions(m[2], m[3]); }
+    else if ((m = line.match(/^([\d][\d.,]*)\s*([kKmMbB])?[\s,;|\t]+(.+)$/))){ name = m[3]; p = toMillions(m[1], m[2]); }
+    if (!m || !isFinite(p) || p <= 0){ bad.push(line); return; }
+    name = name.replace(/[\s,;|]+$/,'').trim();
+    if (name) out.push({name, power: Math.round(p*10)/10});
+  });
+  return {members: out, bad};
+}
+
+/* ---------------- allocation ---------------- */
+function allocate(members, squads, cfg){
+  const nS = squads.length;
+  const res = squads.map(() => ({members:[], power:0}));
+  const subs = [], bench = [], out = [];
+  const pool = members.slice().sort((a,b) => b.power - a.power);
+  const forcedSq = [], forcedSub = [], autos = [];
+  pool.forEach(m => {
+    const ov = m.ov || 'auto';
+    if (ov === 'out') out.push(m);
+    else if (ov === 'sub') forcedSub.push(m);
+    else if (ov.startsWith('sq') && +ov.slice(2) < nS) forcedSq.push(m);
+    else autos.push(m);
+  });
+  const slots = Math.max(0, cfg.starters - forcedSq.length);
+  const starters = autos.slice(0, slots);
+  const rest = autos.slice(slots);
+  forcedSub.concat(rest).forEach(m => (subs.length < cfg.subs ? subs : bench).push(m));
+  forcedSq.forEach(m => { const i = +m.ov.slice(2); res[i].members.push(m); res[i].power += m.power; });
+
+  const total = forcedSq.concat(starters).reduce((s,m) => s + m.power, 0) || 1;
+  const n = forcedSq.length + starters.length;
+  const wsum = squads.reduce((s, q) => s + (q.w > 0 ? q.w : 0), 0) || 1;
+  const share = squads.map(q => (q.w > 0 ? q.w : 0.01) / wsum);
+  const target = share.map(w => w * total);
+  const maxCnt = share.map(w => Math.max(2, Math.ceil(n * w * 1.5)));
+  const queue = starters.slice();
+  // leaders: the strongest auto members seed empty squads, heaviest squad first
+  squads.map((s,i) => i).sort((a,b) => squads[b].w - squads[a].w).forEach(i => {
+    if (!res[i].members.length && queue.length){ const m = queue.shift(); res[i].members.push(m); res[i].power += m.power; }
+  });
+  queue.forEach(m => {
+    let best = -1, bestR = Infinity;
+    for (let i = 0; i < nS; i++){
+      if (res[i].members.length >= maxCnt[i]) continue;
+      const r = res[i].power / target[i];
+      if (r < bestR - 1e-9 || (Math.abs(r-bestR) < 1e-9 && squads[i].w > squads[best].w)){ bestR = r; best = i; }
+    }
+    if (best < 0) best = res.reduce((bi, r, i) => r.power/target[i] < res[bi].power/target[bi] ? i : bi, 0);
+    res[best].members.push(m); res[best].power += m.power;
+  });
+  res.forEach(r => r.members.sort((a,b) => b.power - a.power));
+  return {squads: res, subs, bench, out, total};
+}
+
+/* ---------------- state ---------------- */
+const SAMPLE = `Ironclad, 182.4M
+Valkyrie, 171.9M
+Bastion, 165.2M
+Nightjar, 158.7M
+Kestrel, 151.3M
+Grimwald, 147.8M
+Sable, 142.6M
+Torque, 139.1M
+Halberd, 133.5M
+Vesper, 129.9M
+Onyx, 126.4M
+Riptide, 121.8M
+Marauder, 118.2M
+Cinder, 114.7M
+Juno, 110.3M
+Paladin, 107.6M
+Wraith, 103.9M
+Falcon, 99.5M
+Basalt, 96.2M
+Echo, 92.8M
+Lynx, 88.4M
+Granite, 85.1M
+Mistral, 81.7M
+Quill, 78.3M
+Rook, 74.9M
+Tundra, 71.2M
+Saber, 67.8M
+Dune, 63.5M
+Pike, 59.1M
+Wren, 54.6M`;
+
+function guessLang(){ const l = (navigator.language || 'en').toLowerCase(); return l.startsWith('ko') ? 'ko' : l.startsWith('pt') ? 'pt' : 'en'; }
+const state = {
+  cfg: Object.assign({bf:'desert', dSide:'W', fac:'dawn', cSide:'L', role:'assault', tag:'', when:'', ui: guessLang(), img:'en'}, LS.get('cfg', {})),
+  rosterText: LS.get('roster', SAMPLE),
+  overrides: LS.get('ov', {}),     // name -> 'auto'|'sub'|'out'|'sqN'
+  pos: LS.get('pos2', {}),          // bf -> {id:{x,y}}
+  custom: LS.get('plans2', {}),     // scenario key -> {squads, tips, lang}
+  members: [], result: null, plan: null, editing: false,
+};
+const UI = (k, v) => tr(k, state.cfg.ui, v);
+const IM = (k, v) => tr(k, state.cfg.img, v);
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+
+function save(){ LS.set('cfg', state.cfg); LS.set('ov', state.overrides); LS.set('pos2', state.pos); LS.set('plans2', state.custom); }
+
+function scenarioKey(c){
+  if (c.bf === 'desert') return 'desert-' + c.dSide;
+  return c.fac === 'rule' ? 'canyon-rule' : `canyon-dawn-${c.cSide}-${c.role}`;
+}
+function editablePlan(){
+  const k = scenarioKey(state.cfg);
+  if (!state.custom[k]) state.custom[k] = JSON.parse(JSON.stringify({squads: state.plan.squads, tips: state.plan.tips, lang: state.cfg.img}));
+  return state.custom[k];
+}
+
+function applyUI(){
+  document.documentElement.lang = state.cfg.ui === 'pt' ? 'pt-BR' : state.cfg.ui;
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = UI(el.dataset.t); });
+  document.querySelectorAll('[data-ih]').forEach(el => { el.innerHTML = UI(el.dataset.ih); });
+  $('editBtn').textContent = UI(state.editing ? 'done' : 'move');
+  $('uiLang').value = state.cfg.ui; $('imgLang').value = state.cfg.img;
+}
+
+function syncSeg(segId, val){ $(segId).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === val))); }
+function bindSeg(segId, key){
+  $(segId).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.cfg[key] = b.dataset.v; save(); refresh();
+  });
+}
+
+let lastParse = {n:0, bad:[]};
+function parseMsg(){
+  const msg = $('parseMsg'), {n, bad} = lastParse;
+  msg.className = 'toast' + (bad.length ? ' err' : '');
+  let t = UI('readN', {n});
+  if (bad.length) t += ' · ' + UI('skipN', {n: bad.length}) + `: “${bad[0].slice(0,30)}”`;
+  if (state.rosterText.trim() === SAMPLE.trim()) t += ' · ' + UI('sampleNote');
+  msg.textContent = t;
+}
+function applyRoster(){
+  const {members, bad} = parseRoster($('roster').value);
+  state.rosterText = $('roster').value;
+  LS.set('roster', state.rosterText);
+  state.members = members.map(m => Object.assign(m, {ov: state.overrides[m.name] || 'auto'}));
+  lastParse = {n: members.length, bad};
+  parseMsg();
+  refresh();
+}
+
+function refresh(renderEd = true){
+  const c = state.cfg;
+  syncSeg('bfSeg', c.bf); syncSeg('dSideSeg', c.dSide); syncSeg('facSeg', c.fac); syncSeg('cSideSeg', c.cSide); syncSeg('roleSeg', c.role);
+  $('desertOpts').hidden = c.bf !== 'desert';
+  $('canyonOpts').hidden = c.bf !== 'canyon';
+  $('dawnSideF').hidden = $('dawnRoleF').hidden = c.fac !== 'dawn';
+  const bf = BF[c.bf];
+  state.plan = buildPlan(c, c.img);
+  const cu = state.custom[scenarioKey(c)];
+  if (cu) state.plan = Object.assign({}, state.plan, {squads: cu.squads, tips: cu.tips});
+  if (renderEd) renderEditor();
+  state.members.forEach(m => { if (m.ov.startsWith('sq') && +m.ov.slice(2) >= state.plan.squads.length) m.ov = 'auto'; });
+  state.result = allocate(state.members, state.plan.squads, bf);
+  renderTable();
+  draw();
+}
+
+function assignmentOf(m){
+  const r = state.result;
+  for (let i = 0; i < r.squads.length; i++) if (r.squads[i].members.includes(m)) return {kind:'sq', i};
+  if (r.subs.includes(m)) return {kind:'sub'};
+  if (r.bench.includes(m)) return {kind:'bench'};
+  return {kind:'out'};
+}
+
+function esc(s){ return String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+
+function renderTable(){
+  const r = state.result, sq = state.plan.squads;
+  const tb = $('tbody');
+  const sorted = state.members.slice().sort((a,b) => b.power - a.power);
+  tb.innerHTML = sorted.map((m, idx) => {
+    const a = assignmentOf(m);
+    const curTxt = a.kind === 'sq' ? sq[a.i].name : UI(a.kind);
+    const opts = [['auto', UI('auto') + ' → ' + curTxt], ...sq.map((s,i) => ['sq'+i, String.fromCharCode(65+i) + '. ' + s.name]), ['sub', UI('sub')], ['out', UI('out')]]
+      .map(([v,l]) => `<option value="${v}"${m.ov===v?' selected':''}>${esc(l)}</option>`).join('');
+    const dot = a.kind === 'sq' ? `<span class="dot" style="background:${SQ_COLORS[a.i]}"></span>` : '<span class="dot" style="background:transparent"></span>';
+    return `<tr><td class="num">${idx+1}</td><td class="name" title="${esc(m.name)}">${dot}${esc(m.name)}</td><td class="num">${m.power.toFixed(1)}M</td><td><select id="ov-${idx}" data-name="${esc(m.name)}" aria-label="${esc(m.name)}">${opts}</select></td></tr>`;
+  }).join('') || `<tr><td colspan="4" class="hint" style="padding:12px">${esc(UI('emptyTable'))}</td></tr>`;
+  const st = r.squads.map((s,i) => `<span class="stat"><span class="dot" style="background:${SQ_COLORS[i]}"></span>${esc(sq[i].name)} <b>${s.members.length}</b> · <b>${fmtP(s.power)}</b></span>`).join('');
+  $('stats').innerHTML = st + `<span class="stat">${esc(UI('sub'))} <b>${r.subs.length}</b></span>` + (r.bench.length ? `<span class="stat">${esc(UI('bench'))} <b>${r.bench.length}</b></span>` : '');
+}
+$('tbody').addEventListener('change', e => {
+  const s = e.target.closest('select'); if (!s) return;
+  const m = state.members.find(x => x.name === s.dataset.name); if (!m) return;
+  m.ov = s.value;
+  if (s.value === 'auto') delete state.overrides[m.name]; else state.overrides[m.name] = s.value;
+  save(); refresh(false);
+});
+
+/* ---------------- squad editor ---------------- */
+const openSq = new Set([0]);
+function bLabel(b, lang){ return tr(b.n, lang) + (b.hint ? ` (${b.hint})` : ''); }
+function renderEditor(){
+  const plan = state.plan, bf = BF[state.cfg.bf];
+  const wsum = plan.squads.reduce((s, q) => s + q.w, 0) || 1;
+  const bOpts = sel => `<option value="">${esc(UI('none'))}</option>` + bf.buildings.map(b => `<option value="${b.id}"${sel===b.id?' selected':''}>${esc(bLabel(b, state.cfg.ui))}</option>`).join('');
+  $('sqEditor').innerHTML = plan.squads.map((sq, i) => `
+    <details class="sq" data-i="${i}"${openSq.has(i) ? ' open' : ''}>
+      <summary><span class="badge" style="background:${SQ_COLORS[i]}">${String.fromCharCode(65+i)}</span><span class="sq-name">${esc(sq.name || UI('untitled'))}</span><span class="share" data-share="${i}">${Math.round(sq.w / wsum * 100)}${esc(UI('ofPower'))}</span></summary>
+      <div class="sq-body">
+        <div class="row">
+          <div class="field"><label for="sqn-${i}">${esc(UI('sqName'))}</label><input type="text" id="sqn-${i}" maxlength="24" data-f="name" data-i="${i}" value="${esc(sq.name)}"></div>
+          <div class="field" style="flex:0 0 110px"><label for="sqw-${i}">${esc(UI('weight'))}</label><input type="text" inputmode="numeric" id="sqw-${i}" data-f="w" data-i="${i}" value="${Math.round(sq.w * 100)}"></div>
+        </div>
+        <div class="field"><label for="sqr-${i}">${esc(UI('roleL'))}</label><input type="text" id="sqr-${i}" maxlength="70" data-f="role" data-i="${i}" value="${esc(sq.role || '')}"></div>
+        ${sq.steps.map((st, k) => `
+          <div class="step">
+            <input type="text" id="st-${i}-${k}" aria-label="${esc(UI('aTime'))}" maxlength="10" data-f="t" data-i="${i}" data-k="${k}" value="${esc(st.t)}">
+            <select id="sa-${i}-${k}" aria-label="${esc(UI('aTarget'))}" data-f="ids" data-i="${i}" data-k="${k}">${bOpts(st.ids[0])}</select>
+            <select id="sb-${i}-${k}" aria-label="${esc(UI('aTarget2'))}" data-f="ids" data-i="${i}" data-k="${k}">${bOpts(st.ids[1])}</select>
+            <button type="button" class="icon-btn" data-act="delStep" data-i="${i}" data-k="${k}" aria-label="${esc(UI('aDel'))}">×</button>
+            <input type="text" class="txt" id="sx-${i}-${k}" aria-label="${esc(UI('aText'))}" maxlength="90" data-f="txt" data-i="${i}" data-k="${k}" value="${esc(st.txt)}">
+          </div>`).join('')}
+        <div class="row"><button type="button" class="btn small" data-act="addStep" data-i="${i}">${esc(UI('addStep'))}</button><button type="button" class="btn small danger" data-act="delSquad" data-i="${i}"${plan.squads.length <= 1 ? ' disabled' : ''}>${esc(UI('delSq'))}</button></div>
+      </div>
+    </details>`).join('');
+  $('addSqBtn').disabled = plan.squads.length >= MAX_SQUADS;
+  $('tipsEd').value = plan.tips.join('\n');
+  const cu = state.custom[scenarioKey(state.cfg)];
+  $('planMsg').textContent = cu ? UI('customMsg') + ((cu.lang || 'en') !== state.cfg.img ? ' ' + UI('customLang') : '') : '';
+}
+function updateShares(){
+  const sq = state.plan.squads, wsum = sq.reduce((s, q) => s + q.w, 0) || 1;
+  sq.forEach((q, i) => { const el = document.querySelector(`[data-share="${i}"]`); if (el) el.textContent = `${Math.round(q.w / wsum * 100)}${UI('ofPower')}`; });
+}
+function onEdit(e){
+  const t = e.target, f = t.dataset.f; if (!f) return;
+  const cu = editablePlan(), i = +t.dataset.i, sq = cu.squads[i]; if (!sq) return;
+  const k = +t.dataset.k;
+  if (f === 'name'){ sq.name = t.value; t.closest('details').querySelector('.sq-name').textContent = t.value || UI('untitled'); }
+  else if (f === 'role') sq.role = t.value;
+  else if (f === 'w'){ const v = parseFloat(t.value); if (!(v > 0)) return; sq.w = Math.min(100, v) / 100; }
+  else if (f === 't') sq.steps[k].t = t.value;
+  else if (f === 'txt') sq.steps[k].txt = t.value;
+  else if (f === 'ids'){
+    const ids = [...t.closest('.step').querySelectorAll('select')].map(s => s.value).filter(Boolean);
+    sq.steps[k].ids = [...new Set(ids)];
+  }
+  save(); refresh(false); updateShares();
+  if (!$('planMsg').textContent) $('planMsg').textContent = UI('customMsg');
+}
+$('sqEditor').addEventListener('input', onEdit);
+$('sqEditor').addEventListener('change', onEdit);
+$('sqEditor').addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS'){ const i = +d.dataset.i; d.open ? openSq.add(i) : openSq.delete(i); } }, true);
+$('tipsEd').addEventListener('input', () => { const cu = editablePlan(); cu.tips = $('tipsEd').value.split('\n').map(s => s.trim()).filter(Boolean); save(); refresh(false); });
+
+function remapOverrides(removed){
+  Object.keys(state.overrides).forEach(name => {
+    const v = state.overrides[name]; if (!v.startsWith('sq')) return;
+    const n = +v.slice(2);
+    if (n === removed) delete state.overrides[name];
+    else if (n > removed) state.overrides[name] = 'sq' + (n - 1);
+  });
+  state.members.forEach(m => { m.ov = state.overrides[m.name] || 'auto'; });
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, i = +b.dataset.i;
+  if (act === 'resetPlan'){
+    const k = scenarioKey(state.cfg);
+    if (!state.custom[k]) return;
+    delete state.custom[k];
+    Object.keys(state.overrides).forEach(n => { if (state.overrides[n].startsWith('sq')) delete state.overrides[n]; });
+    state.members.forEach(m => { m.ov = state.overrides[m.name] || 'auto'; });
+    save(); refresh(); toast(UI('tRestored')); return;
+  }
+  const cu = editablePlan();
+  if (act === 'addSquad'){
+    if (cu.squads.length >= MAX_SQUADS) return;
+    cu.squads.push({name: IM('newSq'), role: IM('newRole'), w:.15, steps:[{t:'0:00', ids:[], txt: IM('newStep')}]});
+    openSq.add(cu.squads.length - 1);
+  } else if (act === 'delSquad'){
+    if (cu.squads.length <= 1) return;
+    cu.squads.splice(i, 1); remapOverrides(i);
+    const next = new Set([...openSq].filter(x => x !== i).map(x => x > i ? x - 1 : x)); openSq.clear(); next.forEach(x => openSq.add(x));
+  } else if (act === 'addStep'){
+    cu.squads[i].steps.push({t:'', ids:[], txt:''});
+  } else if (act === 'delStep'){
+    cu.squads[i].steps.splice(+b.dataset.k, 1);
+  } else return;
+  save(); refresh();
+});
+
+function fmtP(v){ return v >= 1000 ? (v/1000).toFixed(2)+'B' : v.toFixed(1)+'M'; }
+
+/* ---------------- canvas drawing ---------------- */
+const FD = '"Oswald","Noto Sans KR","Arial Narrow",Arial,sans-serif';
+const FB = '"IBM Plex Sans","Noto Sans KR",system-ui,sans-serif';
+const FM = '"IBM Plex Mono","Noto Sans KR",ui-monospace,monospace';
+const IMG = { W:1600, pad:48, bg:'#11161a', panel:'#1a2126', line:'#2c363d', ink:'#eef2f0', muted:'#93a19b', accent:'#f2b705' };
+
+function bpos(bfKey, b){ const p = (state.pos[bfKey]||{})[b.id]; return p ? {x:p.x, y:p.y} : {x:b.x, y:b.y}; }
+
+function fitText(c, text, maxW){
+  if (c.measureText(text).width <= maxW) return text;
+  let t = text;
+  while (t.length > 1 && c.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t + '…';
+}
+// wraps on spaces; a single word wider than the line (e.g. long Korean phrase) is broken by characters
+function wrapLines(c, text, maxW){
+  const words = String(text).split(' '), lines = []; let cur = '';
+  const push = w => {
+    if (c.measureText(w).width <= maxW) return w;
+    let part = '';
+    for (const ch of w){ if (c.measureText(part + ch).width > maxW && part){ lines.push(part); part = ch; } else part += ch; }
+    return part;
+  };
+  words.forEach(w => {
+    const t = cur ? cur + ' ' + w : w;
+    if (c.measureText(t).width > maxW){ if (cur) lines.push(cur); cur = push(w); } else cur = t;
+  });
+  if (cur) lines.push(cur);
+  return lines;
+}
+function rrect(c, x, y, w, h, r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function spacing(c, px){ if ('letterSpacing' in c) c.letterSpacing = px + 'px'; }
+
+function layoutCards(c, plan, res, colW){
+  return plan.squads.map((s, i) => {
+    c.font = `500 21px ${FB}`;
+    let stepsH = 0;
+    s.steps.forEach(st => { stepsH += Math.max(1, wrapLines(c, st.txt, colW - 150).length) * 28 + 8; });
+    const rows = Math.ceil(Math.max(1, res.squads[i].members.length) / 2);
+    return 74 + 14 + stepsH + 18 + rows * 34 + 22;
+  });
+}
+
+let mapRect = {x:0, y:0, w:0, h:0, s:1};
+
+function draw(){
+  const c = ctx, {W, pad} = IMG, cfg = state.cfg, bf = BF[cfg.bf], plan = state.plan, res = state.result;
+  const innerW = W - pad*2, colGap = 24, colW = (innerW - colGap) / 2;
+  const cardH = layoutCards(c, plan, res, colW);
+  const colY = [0, 0], cardPos = [];
+  cardH.forEach(h => { const col = colY[0] <= colY[1] ? 0 : 1; cardPos.push({col, y: colY[col]}); colY[col] += h + colGap; });
+  const cardsH = Math.max(colY[0], colY[1]) - colGap;
+  const headerH = 170, mapH = Math.round(innerW * 620 / 1000);
+  const subsList = res.subs, subsRows = Math.max(1, Math.ceil(subsList.length / 4));
+  const subsH = 70 + subsRows * 34 + 10;
+  c.font = `400 21px ${FB}`;
+  const tipLines = plan.tips.map(t => wrapLines(c, t, colW - 90));
+  const tipHalf = Math.ceil(plan.tips.length / 2), tipCol = i => (i < tipHalf ? 0 : 1);
+  const tipColH = [0,0]; tipLines.forEach((l, i) => { tipColH[tipCol(i)] += l.length * 29 + 14; });
+  const tipsH = 70 + Math.max(tipColH[0], tipColH[1]) + 8;
+  c.font = `400 17px ${FB}`;
+  const footLines = wrapLines(c, IM('footer'), innerW);
+  const H = headerH + 20 + mapH + 30 + cardsH + 30 + subsH + 24 + tipsH + 40 + footLines.length * 24;
+  cv.width = W; cv.height = Math.ceil(H);
+
+  c.fillStyle = IMG.bg; c.fillRect(0, 0, W, H);
+
+  // header
+  c.fillStyle = '#161c21'; c.fillRect(0, 0, W, headerH);
+  c.fillStyle = IMG.accent; c.fillRect(0, headerH - 6, W, 6);
+  c.textBaseline = 'alphabetic';
+  c.fillStyle = IMG.accent; c.font = `600 20px ${FD}`; spacing(c, 4);
+  c.fillText(IM('hdr'), pad, 50);
+  spacing(c, 1);
+  c.fillStyle = IMG.ink; c.font = `700 64px ${FD}`;
+  const title = fitText(c, IM(bf.key).toUpperCase(), 820);
+  c.fillText(title, pad, 118);
+  const tw = c.measureText(title).width;
+  if (cfg.tag){ c.fillStyle = IMG.accent; c.font = `600 40px ${FD}`; c.fillText(fitText(c, '· ' + cfg.tag, Math.max(120, 1000 - tw)), pad + tw + 18, 116); }
+  spacing(c, 0);
+  c.fillStyle = IMG.muted; c.font = `500 21px ${FB}`;
+  c.fillText(fitText(c, plan.subtitle, 960), pad, 150);
+  c.textAlign = 'right';
+  c.fillStyle = IMG.ink; c.font = `600 22px ${FB}`;
+  if (cfg.when) c.fillText(fitText(c, cfg.when, 520), W - pad, 50);
+  const nStart = res.squads.reduce((s, q) => s + q.members.length, 0);
+  c.fillStyle = IMG.muted; c.font = `500 18px ${FB}`;
+  c.fillText(IM('startersTotal'), W - pad, 94);
+  c.fillStyle = IMG.ink; c.font = `700 40px ${FM}`;
+  const totP = res.squads.reduce((s, q) => s + q.power, 0);
+  c.fillText(`${nStart} · ${fmtP(totP)}`, W - pad, 140);
+  c.textAlign = 'left';
+
+  // map
+  const mx = pad, my = headerH + 20, mw = innerW, mh = mapH, s = mw / 1000;
+  mapRect = {x:mx, y:my, w:mw, h:mh, s};
+  drawMap(c, mx, my, mw, mh, s, bf, plan);
+
+  // squad cards
+  const cy0 = my + mh + 30;
+  plan.squads.forEach((sq, i) => {
+    const x = pad + cardPos[i].col * (colW + colGap), y = cy0 + cardPos[i].y;
+    drawCard(c, x, y, colW, cardH[i], sq, res.squads[i], i);
+  });
+
+  // subs
+  let y = cy0 + cardsH + 30;
+  rrect(c, pad, y, innerW, subsH, 8); c.fillStyle = IMG.panel; c.fill();
+  c.fillStyle = IMG.ink; c.font = `600 26px ${FD}`; c.fillText(IM('subsT'), pad + 24, y + 42);
+  const stw = c.measureText(IM('subsT')).width;
+  c.fillStyle = IMG.muted; c.font = `500 18px ${FB}`;
+  c.fillText(fitText(c, IM('subsDesc'), innerW - stw - 70), pad + 24 + stw + 18, y + 41);
+  const sw = (innerW - 48) / 4;
+  if (!subsList.length){ c.fillStyle = IMG.muted; c.font = `400 20px ${FB}`; c.fillText(IM('noneImg'), pad + 24, y + 86); }
+  subsList.forEach((m, i) => {
+    const sx = pad + 24 + (i % 4) * sw, sy = y + 86 + Math.floor(i / 4) * 34;
+    c.fillStyle = IMG.ink; c.font = `500 20px ${FB}`; c.fillText(fitText(c, m.name, sw - 110), sx, sy);
+    c.fillStyle = IMG.muted; c.font = `500 18px ${FM}`; c.textAlign = 'right'; c.fillText(fmtP(m.power), sx + sw - 18, sy); c.textAlign = 'left';
+  });
+
+  // rules of engagement
+  y += subsH + 24;
+  rrect(c, pad, y, innerW, tipsH, 8); c.fillStyle = IMG.panel; c.fill();
+  c.fillStyle = IMG.accent; c.fillRect(pad, y, 6, tipsH);
+  c.fillStyle = IMG.ink; c.font = `600 26px ${FD}`; c.fillText(IM('rulesT'), pad + 24, y + 42);
+  const ty = [y + 84, y + 84];
+  tipLines.forEach((lines, i) => {
+    const col = tipCol(i), tx = pad + 24 + col * (colW + colGap);
+    c.fillStyle = IMG.accent; c.font = `700 20px ${FM}`; c.fillText(String(i+1).padStart(2,'0'), tx, ty[col]);
+    c.fillStyle = IMG.ink; c.font = `400 21px ${FB}`;
+    lines.forEach((ln, k) => c.fillText(ln, tx + 38, ty[col] + k * 29));
+    ty[col] += lines.length * 29 + 14;
+  });
+
+  // footer
+  c.fillStyle = IMG.muted; c.font = `400 17px ${FB}`;
+  footLines.forEach((ln, k) => c.fillText(ln, pad, H - 24 - (footLines.length - 1 - k) * 24));
+}
+
+function glyph(c, ic, x, y, s, col){
+  c.save(); c.translate(x, y); c.fillStyle = col; c.strokeStyle = col; c.lineWidth = Math.max(2, s*0.16); c.lineCap = 'round'; c.lineJoin = 'round';
+  const P = () => c.beginPath();
+  if (ic === 'cross'){ const a = s*0.28, b = s*0.85; c.fillRect(-a/2*1.2, -b/2, a*1.2, b); c.fillRect(-b/2, -a/2*1.2, b, a*1.2); }
+  else if (ic === 'drop'){ P(); c.moveTo(0, -s*0.5); c.bezierCurveTo(s*0.45, -s*0.05, s*0.42, s*0.45, 0, s*0.45); c.bezierCurveTo(-s*0.42, s*0.45, -s*0.45, -s*0.05, 0, -s*0.5); c.fill(); }
+  else if (ic === 'atom'){ for (let k = 0; k < 3; k++){ const a0 = -Math.PI/2 + k*2*Math.PI/3 - 0.5; P(); c.moveTo(0,0); c.arc(0, 0, s*0.5, a0, a0 + 1.0); c.closePath(); c.fill(); } P(); c.arc(0, 0, s*0.12, 0, 7); c.fillStyle = '#14181b'; c.fill(); }
+  else if (ic === 'shield'){ P(); c.moveTo(0, -s*0.48); c.lineTo(s*0.4, -s*0.32); c.lineTo(s*0.34, s*0.12); c.quadraticCurveTo(s*0.2, s*0.4, 0, s*0.5); c.quadraticCurveTo(-s*0.2, s*0.4, -s*0.34, s*0.12); c.lineTo(-s*0.4, -s*0.32); c.closePath(); c.fill(); }
+  else if (ic === 'gear'){ for (let k = 0; k < 8; k++){ c.save(); c.rotate(k*Math.PI/4); c.fillRect(-s*0.09, -s*0.5, s*0.18, s*0.22); c.restore(); } P(); c.arc(0, 0, s*0.32, 0, 7); c.fill(); P(); c.arc(0, 0, s*0.13, 0, 7); c.fillStyle = '#14181b'; c.fill(); }
+  else if (ic === 'dish'){ P(); c.arc(-s*0.2, s*0.25, s*0.08, 0, 7); c.fill(); [0.3, 0.55].forEach(r => { P(); c.arc(-s*0.2, s*0.25, s*r, -Math.PI/2, 0); c.stroke(); }); P(); c.moveTo(-s*0.2, s*0.25); c.lineTo(-s*0.2, s*0.5); c.stroke(); }
+  else if (ic === 'flask'){ P(); c.moveTo(-s*0.12, -s*0.48); c.lineTo(-s*0.12, -s*0.1); c.lineTo(-s*0.4, s*0.42); c.lineTo(s*0.4, s*0.42); c.lineTo(s*0.12, -s*0.1); c.lineTo(s*0.12, -s*0.48); c.closePath(); c.fill(); }
+  else if (ic === 'bolt'){ P(); c.moveTo(s*0.1, -s*0.52); c.lineTo(-s*0.3, s*0.06); c.lineTo(-s*0.02, s*0.06); c.lineTo(-s*0.12, s*0.52); c.lineTo(s*0.3, -s*0.08); c.lineTo(s*0.02, -s*0.08); c.closePath(); c.fill(); }
+  else if (ic === 'bio'){ for (let k = 0; k < 3; k++){ const a = -Math.PI/2 + k*2*Math.PI/3; P(); c.arc(Math.cos(a)*s*0.22, Math.sin(a)*s*0.22, s*0.22, 0, 7); c.stroke(); } P(); c.arc(0, 0, s*0.1, 0, 7); c.fill(); }
+  else if (ic === 'target'){ P(); c.arc(0, 0, s*0.34, 0, 7); c.stroke(); P(); c.arc(0, 0, s*0.08, 0, 7); c.fill(); [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx,dy]) => { P(); c.moveTo(dx*s*0.22, dy*s*0.22); c.lineTo(dx*s*0.52, dy*s*0.52); c.stroke(); }); }
+  else if (ic === 'box'){ c.fillRect(-s*0.42, -s*0.18, s*0.84, s*0.6); c.fillRect(-s*0.48, -s*0.38, s*0.96, s*0.16); c.fillStyle = '#14181b'; c.fillRect(-s*0.1, -s*0.18, s*0.2, s*0.24); }
+  c.restore();
+}
+
+function drawMap(c, mx, my, mw, mh, s, bf, plan){
+  const cfg = state.cfg, L = cfg.img;
+  c.save();
+  rrect(c, mx, my, mw, mh, 10); c.clip();
+  const g = c.createRadialGradient(mx + mw/2, my + mh/2, 20, mx + mw/2, my + mh/2, mw*0.62);
+  if (bf.theme === 'desert'){ g.addColorStop(0, '#3b2a12'); g.addColorStop(1, '#130e08'); }
+  else { g.addColorStop(0, '#12262e'); g.addColorStop(1, '#070f13'); }
+  c.fillStyle = g; c.fillRect(mx, my, mw, mh);
+  // fine dot texture
+  c.fillStyle = 'rgba(255,255,255,0.035)';
+  for (let gx = 10; gx < 1000; gx += 25) for (let gy = 10; gy < 620; gy += 25){ c.fillRect(mx + gx*s, my + gy*s, 2, 2); }
+
+  const B = {}; bf.buildings.forEach(b => { B[b.id] = Object.assign({}, b, bpos(cfg.bf, b)); });
+
+  // road links between buildings
+  c.save(); c.setLineDash([9, 9]); c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,0.16)';
+  (bf.links || []).forEach(([a, b]) => { if (!B[a] || !B[b]) return; c.beginPath(); c.moveTo(mx + B[a].x*s, my + B[a].y*s); c.lineTo(mx + B[b].x*s, my + B[b].y*s); c.stroke(); });
+  c.restore();
+
+  // zones
+  bf.zones(cfg).forEach(z => {
+    const lbl = tr(z.k, L), usLbl = tr('us', L);
+    const fg = z.ours ? IMG.accent : z.neutral ? '#55d1b8' : '#8fb4ff';
+    if (z.band){
+      const bw = 34, bx = z.band === 'L' ? mx : mx + mw - bw;
+      c.fillStyle = z.ours ? 'rgba(242,183,5,0.20)' : 'rgba(239,90,60,0.14)'; c.fillRect(bx, my, bw, mh);
+      c.fillStyle = z.ours ? IMG.accent : 'rgba(239,106,60,0.75)'; c.fillRect(z.band === 'L' ? bx + bw - 3 : bx, my, 3, mh);
+      c.save(); c.translate(bx + bw/2, my + mh/2); c.rotate(z.band === 'L' ? -Math.PI/2 : Math.PI/2);
+      c.fillStyle = z.ours ? IMG.accent : '#f19172'; c.font = `600 18px ${FD}`; c.textAlign = 'center'; spacing(c, 3);
+      c.fillText(lbl + (z.ours ? '   ' + usLbl : ''), 0, 6); spacing(c, 0); c.restore();
+      return;
+    }
+    const zx = mx + z.x*s, zy = my + z.y*s, zw = z.w*s, zh = z.h*s;
+    rrect(c, zx, zy, zw, zh, 6);
+    c.fillStyle = z.ours ? 'rgba(242,183,5,0.20)' : z.neutral ? 'rgba(47,196,163,0.08)' : 'rgba(10,16,20,0.75)'; c.fill();
+    c.setLineDash(z.neutral ? [7,6] : []); c.lineWidth = 2;
+    c.strokeStyle = z.ours ? IMG.accent : z.neutral ? 'rgba(85,209,184,0.6)' : 'rgba(143,180,255,0.6)'; c.stroke(); c.setLineDash([]);
+    c.fillStyle = fg; c.font = `600 18px ${FD}`; c.textAlign = 'center'; spacing(c, 2);
+    const arrowCh = z.k === 'zA1' ? '▲ ' : z.neutral ? '' : '▼ ';
+    c.fillText(fitText(c, arrowCh + lbl + (z.ours ? '  ' + usLbl : ''), zw - 12), zx + zw/2, zy + zh/2 + 6);
+    spacing(c, 0); c.textAlign = 'left';
+  });
+
+  // squad movement arrows
+  plan.squads.forEach((sq, i) => {
+    const pts = sq.steps.filter(st => st.ids.length && B[st.ids[0]]).map(st => B[st.ids[0]]);
+    for (let k = 0; k < pts.length - 1; k++){
+      const a = pts[k], b = pts[k+1]; if (a === b) continue;
+      const off = (i - (plan.squads.length-1)/2) * 6;
+      arrow(c, mx + a.x*s + off, my + a.y*s + off, mx + b.x*s + off, my + b.y*s + off, SQ_COLORS[i], k > 0);
+    }
+  });
+
+  // buildings with squad badges
+  const marks = {};
+  plan.squads.forEach((sq, i) => sq.steps.forEach((st, k) => st.ids.forEach(id => {
+    (marks[id] = marks[id] || []);
+    if (!marks[id].some(m => m.i === i)) marks[id].push({i, k});
+  })));
+  Object.values(B).forEach(b => {
+    const x = mx + b.x*s, y = my + b.y*s;
+    const r = [22, 25, 29, 36][b.tier];
+    // glow for the main objective
+    if (b.tier === 3){ const gg = c.createRadialGradient(x, y, r*0.6, x, y, r*2.2); gg.addColorStop(0, b.col + '66'); gg.addColorStop(1, b.col + '00'); c.fillStyle = gg; c.beginPath(); c.arc(x, y, r*2.2, 0, 7); c.fill(); }
+    // hex pad
+    c.beginPath();
+    for (let k = 0; k < 6; k++){ const a = Math.PI/6 + k*Math.PI/3; const px = x + Math.cos(a)*r, py = y + Math.sin(a)*r*0.9; k ? c.lineTo(px, py) : c.moveTo(px, py); }
+    c.closePath(); c.fillStyle = '#14181b'; c.fill(); c.lineWidth = 3; c.strokeStyle = b.col; c.stroke();
+    glyph(c, b.ic, x, y, r*1.05, b.col);
+    // label pill
+    const name = tr(b.n, L), tag = tr(b.g, L);
+    c.textAlign = 'center';
+    c.font = `700 19px ${FB}`; const nw = c.measureText(name).width;
+    c.font = `500 15px ${FB}`; const gw = c.measureText(tag).width;
+    const lw = Math.max(nw, gw) + 22, ly = y + r + 8;
+    rrect(c, x - lw/2, ly, lw, 46, 6); c.fillStyle = 'rgba(8,10,12,0.9)'; c.fill();
+    c.lineWidth = 1.5; c.strokeStyle = b.col + 'aa'; c.stroke();
+    c.fillStyle = IMG.ink; c.font = `700 19px ${FB}`; c.fillText(name, x, ly + 21);
+    c.fillStyle = IMG.muted; c.font = `500 15px ${FB}`; c.fillText(tag, x, ly + 39);
+    c.textAlign = 'left';
+    const ms = marks[b.id] || [];
+    const bw = 34, total = ms.length * bw;
+    ms.forEach((m, j) => {
+      const bx = x - total/2 + j*bw + bw/2, by = y - r - 20;
+      c.beginPath(); c.arc(bx, by, 15, 0, Math.PI*2);
+      if (m.k === 0){ c.fillStyle = SQ_COLORS[m.i]; c.fill(); c.lineWidth = 2; c.strokeStyle = '#11161a'; c.stroke(); c.fillStyle = '#11161a'; }
+      else { c.fillStyle = '#11161a'; c.fill(); c.lineWidth = 3; c.strokeStyle = SQ_COLORS[m.i]; c.stroke(); c.fillStyle = SQ_COLORS[m.i]; }
+      c.font = `700 17px ${FD}`; c.textAlign = 'center'; c.fillText(String.fromCharCode(65 + m.i), bx, by + 6); c.textAlign = 'left';
+    });
+  });
+
+  // legend (bottom right for desert, top right for canyon)
+  c.font = `500 16px ${FB}`;
+  const l1 = tr('lgOpen', L), l2 = tr('lgLater', L);
+  const lwid = 26 + c.measureText(l1).width + 22 + 26 + c.measureText(l2).width + 10;
+  const lx = mx + mw - lwid - (bf.theme === 'desert' ? 50 : 16), lyy = bf.theme === 'desert' ? my + mh - 18 : my + 38;
+  rrect(c, lx - 8, lyy - 24, lwid + 8, 34, 6); c.fillStyle = 'rgba(8,10,12,0.75)'; c.fill();
+  c.beginPath(); c.arc(lx + 10, lyy - 6, 10, 0, Math.PI*2); c.fillStyle = IMG.accent; c.fill();
+  c.fillStyle = IMG.ink; c.fillText(l1, lx + 26, lyy);
+  const l2x = lx + 26 + c.measureText(l1).width + 22;
+  c.beginPath(); c.arc(l2x + 10, lyy - 6, 10, 0, Math.PI*2); c.fillStyle = '#11161a'; c.fill(); c.lineWidth = 3; c.strokeStyle = IMG.accent; c.stroke();
+  c.fillStyle = IMG.ink; c.fillText(l2, l2x + 26, lyy);
+  c.restore();
+  c.lineWidth = 2; c.strokeStyle = IMG.line; rrect(c, mx, my, mw, mh, 10); c.stroke();
+}
+
+function arrow(c, x1, y1, x2, y2, color, dashed){
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy); if (len < 40) return;
+  const ux = dx/len, uy = dy/len, sx = x1 + ux*32, sy = y1 + uy*32, ex = x2 - ux*40, ey = y2 - uy*40;
+  const cx = (sx+ex)/2 - uy*len*0.12, cy = (sy+ey)/2 + ux*len*0.12;
+  c.save();
+  c.strokeStyle = 'rgba(0,0,0,0.45)'; c.lineWidth = 8; c.setLineDash(dashed ? [14,10] : []);
+  c.beginPath(); c.moveTo(sx, sy); c.quadraticCurveTo(cx, cy, ex, ey); c.stroke();
+  c.strokeStyle = color; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(sx, sy); c.quadraticCurveTo(cx, cy, ex, ey); c.stroke();
+  c.setLineDash([]);
+  const ang = Math.atan2(ey - cy, ex - cx);
+  c.fillStyle = color; c.beginPath();
+  c.moveTo(ex + Math.cos(ang)*6, ey + Math.sin(ang)*6);
+  c.lineTo(ex - Math.cos(ang - 0.5)*18, ey - Math.sin(ang - 0.5)*18);
+  c.lineTo(ex - Math.cos(ang + 0.5)*18, ey - Math.sin(ang + 0.5)*18);
+  c.closePath(); c.fill();
+  c.restore();
+}
+
+function drawCard(c, x, y, w, h, sq, r, i){
+  const col = SQ_COLORS[i];
+  rrect(c, x, y, w, h, 8); c.fillStyle = IMG.panel; c.fill();
+  c.save(); rrect(c, x, y, w, h, 8); c.clip(); c.fillStyle = col; c.fillRect(x, y, w, 6); c.restore();
+  c.beginPath(); c.arc(x + 42, y + 44, 22, 0, Math.PI*2); c.fillStyle = col; c.fill();
+  c.fillStyle = '#11161a'; c.font = `700 26px ${FD}`; c.textAlign = 'center'; c.fillText(String.fromCharCode(65+i), x + 42, y + 53); c.textAlign = 'left';
+  c.fillStyle = IMG.ink; c.font = `600 30px ${FD}`; c.fillText(fitText(c, (sq.name || '').toUpperCase(), w - 280), x + 78, y + 47);
+  c.fillStyle = IMG.muted; c.font = `400 17px ${FB}`; c.fillText(fitText(c, sq.role || '', w - 260), x + 78, y + 70);
+  c.textAlign = 'right';
+  c.fillStyle = IMG.ink; c.font = `700 24px ${FM}`; c.fillText(fmtP(r.power), x + w - 22, y + 46);
+  c.fillStyle = IMG.muted; c.font = `500 16px ${FB}`; c.fillText(IM('playersN', {n: r.members.length}), x + w - 22, y + 70);
+  c.textAlign = 'left';
+  let yy = y + 74 + 14 + 22;
+  sq.steps.forEach(st => {
+    const tw = 110;
+    rrect(c, x + 22, yy - 20, tw, 28, 4); c.fillStyle = 'rgba(255,255,255,0.07)'; c.fill();
+    c.fillStyle = col; c.font = `600 17px ${FM}`; c.textAlign = 'center'; c.fillText(fitText(c, st.t || '—', tw - 8), x + 22 + tw/2, yy); c.textAlign = 'left';
+    c.fillStyle = IMG.ink; c.font = `500 21px ${FB}`;
+    const lines = wrapLines(c, st.txt, w - 150);
+    lines.forEach((ln, k) => c.fillText(ln, x + 22 + tw + 14, yy + k*28));
+    yy += Math.max(1, lines.length) * 28 + 8;
+  });
+  yy += 2; c.fillStyle = IMG.line; c.fillRect(x + 22, yy - 8, w - 44, 1);
+  const cw = (w - 44) / 2;
+  if (!r.members.length){ c.fillStyle = IMG.muted; c.font = `400 19px ${FB}`; c.fillText(IM('noPlayers'), x + 22, yy + 24); }
+  r.members.forEach((m, k) => {
+    const px = x + 22 + (k % 2) * cw, py = yy + 24 + Math.floor(k / 2) * 34;
+    const lead = k === 0;
+    c.fillStyle = lead ? col : IMG.ink; c.font = `${lead ? 700 : 500} 20px ${FB}`;
+    c.fillText(fitText(c, (lead ? '★ ' : '') + m.name, cw - 100), px, py);
+    c.fillStyle = IMG.muted; c.font = `500 17px ${FM}`; c.textAlign = 'right'; c.fillText(fmtP(m.power), px + cw - 14, py); c.textAlign = 'left';
+  });
+}
+
+/* ---------------- map editing ---------------- */
+let drag = null;
+function canvasPt(e){
+  const rc = cv.getBoundingClientRect();
+  return { x: (e.clientX - rc.left) * cv.width / rc.width, y: (e.clientY - rc.top) * cv.height / rc.height };
+}
+cv.addEventListener('pointerdown', e => {
+  if (!state.editing) return;
+  const p = canvasPt(e), {x, y, s} = mapRect, bf = BF[state.cfg.bf];
+  let best = null, bd = 50;
+  bf.buildings.forEach(b => { const q = bpos(state.cfg.bf, b); const d = Math.hypot(x + q.x*s - p.x, y + q.y*s - p.y); if (d < bd){ bd = d; best = b; } });
+  if (best){ drag = best; cv.setPointerCapture(e.pointerId); e.preventDefault(); }
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const p = canvasPt(e), {x, y, s} = mapRect;
+  const nx = Math.max(20, Math.min(980, (p.x - x) / s)), ny = Math.max(30, Math.min(560, (p.y - y) / s));
+  (state.pos[state.cfg.bf] = state.pos[state.cfg.bf] || {})[drag.id] = {x: Math.round(nx), y: Math.round(ny)};
+  draw();
+});
+['pointerup','pointercancel'].forEach(ev => cv.addEventListener(ev, () => { if (drag){ drag = null; save(); } }));
+$('editBtn').addEventListener('click', () => {
+  state.editing = !state.editing;
+  $('editBtn').setAttribute('aria-pressed', String(state.editing));
+  $('editBtn').textContent = UI(state.editing ? 'done' : 'move');
+  $('resetBtn').hidden = !state.editing;
+  cv.classList.toggle('editing', state.editing);
+});
+$('resetBtn').addEventListener('click', () => { delete state.pos[state.cfg.bf]; save(); draw(); toast(UI('tMapReset')); });
+
+/* ---------------- export ---------------- */
+function toast(t){ $('toast').textContent = t; clearTimeout(toast._t); toast._t = setTimeout(() => $('toast').textContent = '', 6000); }
+let downloads = null;
+if (window.claude && typeof window.claude.use === 'function'){
+  window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {});
+}
+$('dlBtn').addEventListener('click', () => {
+  draw();
+  cv.toBlob(async blob => {
+    if (!blob){ toast(UI('tNoImg')); return; }
+    const fname = `${state.cfg.bf}-storm-orders${state.cfg.tag ? '-' + state.cfg.tag.replace(/[^\w-]+/g,'') : ''}.png`;
+    if (downloads){
+      try { await downloads.save({filename: fname, data: blob}); toast(UI('tSaved')); return; }
+      catch(err){ if (err && err.code === 'declined'){ toast(UI('tCancel')); return; } }
+    }
+    // outside claude.ai (self-hosted copy) a plain download link works; also show the image to save by hand
+    const url = URL.createObjectURL(blob);
+    try { const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); } catch(e){}
+    const img = new Image(); img.src = url; img.alt = 'Battle orders image'; img.style.cssText = 'width:100%;border-radius:6px;margin-top:10px';
+    const old = document.getElementById('fallbackImg'); if (old) old.remove();
+    img.id = 'fallbackImg'; cv.after(img);
+    toast(UI('tFallback'));
+  }, 'image/png');
+});
+
+function ordersText(){
+  const p = state.plan, r = state.result, c = state.cfg;
+  const L = [`[${IM(BF[c.bf].key)}${c.tag ? ' · ' + c.tag : ''}] ${p.subtitle}${c.when ? ' · ' + c.when : ''}`];
+  p.squads.forEach((s, i) => {
+    L.push('', `${String.fromCharCode(65+i)}. ${s.name.toUpperCase()} (${fmtP(r.squads[i].power)})`);
+    s.steps.forEach(st => L.push(`  ${st.t} — ${st.txt}`));
+    L.push('  ' + r.squads[i].members.map((m, k) => (k === 0 ? '★' : '') + m.name).join(', '));
+  });
+  L.push('', IM('subsLine') + ': ' + (r.subs.map(m => m.name).join(', ') || IM('noneImg')));
+  return L.join('\n');
+}
+$('copyBtn').addEventListener('click', () => {
+  const t = ordersText();
+  const fb = () => { const ta = $('copyFallback'); ta.hidden = false; ta.value = t; ta.style.minHeight = '220px'; ta.focus(); ta.select(); toast(UI('tSelCopy')); };
+  try { navigator.clipboard.writeText(t).then(() => toast(UI('tCopied')), fb); } catch(e){ fb(); }
+});
+
+/* ---------------- wiring ---------------- */
+bindSeg('bfSeg', 'bf'); bindSeg('dSideSeg', 'dSide'); bindSeg('facSeg', 'fac'); bindSeg('cSideSeg', 'cSide'); bindSeg('roleSeg', 'role');
+['tag','when'].forEach(k => { const el = $(k); el.value = state.cfg[k] || ''; el.addEventListener('input', () => { state.cfg[k] = el.value; save(); draw(); }); });
+$('uiLang').addEventListener('change', e => { state.cfg.ui = e.target.value; save(); applyUI(); parseMsg(); refresh(); });
+$('imgLang').addEventListener('change', e => { state.cfg.img = e.target.value; save(); refresh(); });
+$('roster').value = state.rosterText;
+$('applyBtn').addEventListener('click', applyRoster);
+$('sampleBtn').addEventListener('click', () => { $('roster').value = SAMPLE; applyRoster(); });
+
+applyUI();
+applyRoster();
+const fontsToLoad = ['700 64px Oswald','600 20px Oswald','500 20px "IBM Plex Sans"','600 20px "IBM Plex Sans"','700 20px "IBM Plex Mono"','500 20px "IBM Plex Mono"','500 20px "Noto Sans KR"','700 20px "Noto Sans KR"'];
+if (document.fonts && document.fonts.load){
+  Promise.all(fontsToLoad.map(f => document.fonts.load(f).catch(() => {}))).then(() => draw());
+  document.fonts.ready.then(() => draw());
+}
+window.__sbo = {parseRoster, allocate, buildPlan, BF, tr};
+
+/* ---------------- entry ---------------- */
+const GRID_TICKS = ['=UGa','jFGc','hBSZ','jlmb'];
+const gridKey = () => GRID_TICKS.join('').split('').reverse().join('');
+const enc = v => { try { return btoa(unescape(encodeURIComponent(v))); } catch(e){ return ''; } };
+function openApp(){ $('gate').hidden = true; $('app').hidden = false; draw(); }
+let seen = null; try { seen = sessionStorage.getItem('sbo:g'); } catch(e){}
+if (seen === gridKey()) openApp(); else setTimeout(() => $('gateCode').focus(), 0);
+$('gateForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = $('gateCode').value.trim().replace(/\s+/g, ' ').toLowerCase();
+  if (enc(v) === gridKey()){ try { sessionStorage.setItem('sbo:g', gridKey()); } catch(err){} openApp(); }
+  else { $('gateErr').textContent = 'Wrong code.'; $('gateCode').select(); }
+});
+})();
+</script>
+
+</body>
+</html>
